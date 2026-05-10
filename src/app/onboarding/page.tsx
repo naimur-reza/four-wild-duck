@@ -1,29 +1,33 @@
 import { redirect } from "next/navigation";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
-import { getActiveMembership } from "@/lib/auth/mess";
 import { prisma } from "@/lib/db/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function OnboardingPage() {
   const user = await ensureProfile();
-  const membership = await getActiveMembership(user.id);
+
+  const membership = await prisma.messMember.findFirst({
+    where: { userId: user.id, status: "ACTIVE" },
+    select: { id: true },
+    orderBy: { createdAt: "asc" }
+  });
 
   if (membership) redirect("/dashboard");
 
-  const profile = await prisma.profile.findUnique({
-    where: { userId: user.id }
-  });
-
-  const email = profile?.email?.toLowerCase();
-
-  if (email) {
+  if (user.email) {
     const invite = await prisma.memberInvite.findFirst({
       where: {
-        email,
+        email: user.email.toLowerCase(),
         acceptedAt: null
       },
-      orderBy: { createdAt: "asc" }
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        messId: true,
+        role: true,
+        openingBalance: true
+      }
     });
 
     if (invite) {

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { AddButton } from "@/components/ui/add-button";
 import { PageHeading } from "@/components/ui/page-heading";
 import { SectionCard } from "@/components/ui/section-card";
@@ -73,7 +74,11 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
           <SectionCard key={member.id} className="p-3 sm:p-5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-950 to-slate-700 text-sm font-black text-white sm:h-12 sm:w-12 sm:rounded-2xl sm:text-lg">{member.profile.name[0]}</div>
+                {member.profile.avatarUrl ? (
+                  <Image src={member.profile.avatarUrl} alt="" width={48} height={48} unoptimized className="h-9 w-9 shrink-0 rounded-xl object-cover ring-1 ring-slate-100 sm:h-12 sm:w-12 sm:rounded-2xl" />
+                ) : (
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-950 to-slate-700 text-sm font-black text-white sm:h-12 sm:w-12 sm:rounded-2xl sm:text-lg">{member.profile.name[0]}</div>
+                )}
                 <div className="min-w-0">
                   <h3 className="truncate text-xs font-black sm:text-base">{member.profile.name}</h3>
                   <p className="truncate text-[10px] font-semibold text-slate-400 sm:text-xs">{member.role} #{index + 1}</p>

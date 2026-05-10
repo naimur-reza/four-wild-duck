@@ -1,6 +1,7 @@
 import { AddButton } from "@/components/ui/add-button";
 import { PageHeading } from "@/components/ui/page-heading";
 import { SectionCard } from "@/components/ui/section-card";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { addMember, updateMember } from "@/app/(member)/actions";
 import { canManageMoney, getMessMembers, requireMembership, toNumber } from "@/lib/data/ledger";
 import { formatTaka } from "@/lib/utils";
@@ -19,7 +20,8 @@ export default async function MembersPage() {
 
       {canManage ? (
         <SectionCard className="mb-4">
-          <h3 className="text-xl font-black">Add existing profile</h3>
+          <h3 className="text-xl font-black">Join a member</h3>
+          <p className="mt-2 text-sm font-semibold text-slate-500">Ask them to sign in once with Google, then add their email, username, or user id here.</p>
           <form action={addMember} className="mt-5 grid gap-3 md:grid-cols-[1.3fr_0.8fr_0.8fr_auto]">
             <input name="profile" className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm outline-none transition focus:border-teal-500 focus:bg-white" placeholder="Email, username, or user id" required />
             <select name="role" disabled={!isOwner} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none transition focus:border-teal-500 focus:bg-white">
@@ -27,7 +29,7 @@ export default async function MembersPage() {
               <option value="MANAGER">Manager</option>
             </select>
             <input name="opening_balance" type="number" step="0.01" className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm outline-none transition focus:border-teal-500 focus:bg-white" placeholder="Opening balance" />
-            <button className="rounded-2xl bg-teal-700 px-5 py-3 text-sm font-black text-white shadow-lg shadow-teal-100 transition hover:bg-slate-950">Save</button>
+            <SubmitButton className="rounded-2xl bg-teal-700 px-5 py-3 text-sm font-black text-white shadow-lg shadow-teal-100 transition hover:bg-slate-950">Save</SubmitButton>
           </form>
         </SectionCard>
       ) : null}
@@ -61,7 +63,7 @@ export default async function MembersPage() {
                   <option value="ACTIVE">Active</option>
                   <option value="INACTIVE">Inactive</option>
                 </select>
-                <button className="col-span-2 rounded-2xl bg-slate-950 px-4 py-2 text-xs font-black text-white">Update</button>
+                <SubmitButton pendingText="Updating..." className="col-span-2 rounded-2xl bg-slate-950 px-4 py-2 text-xs font-black text-white">Update</SubmitButton>
               </form>
             ) : null}
           </SectionCard>

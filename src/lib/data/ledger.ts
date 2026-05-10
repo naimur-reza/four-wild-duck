@@ -99,6 +99,23 @@ export async function getMessMembers(messId: string) {
   });
 }
 
+export async function getMessMonths(messId: string) {
+  return prisma.month.findMany({
+    where: { messId },
+    orderBy: { createdAt: "desc" }
+  });
+}
+
+export function endOfDay(value: string) {
+  const date = new Date(`${value}T23:59:59.999`);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+export function startOfDay(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
 export async function getMonthExpenses(messId: string, monthId: string) {
   return prisma.expense.findMany({
     where: { messId, monthId },

@@ -18,12 +18,26 @@ type SessionUser = {
   image?: string | null;
 };
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  initialMessName,
+  initialRole,
+  currentLabel
+}: {
+  children: React.ReactNode;
+  initialMessName: string;
+  initialRole: string;
+  currentLabel: string;
+}) {
   const session = authClient.useSession();
   const sessionUser = session.data?.user as SessionUser | undefined;
-  const [memberSummary, setMemberSummary] = useState<MemberSummary | null>(null);
-  const role = memberSummary?.role || "MEMBER";
-  const messName = memberSummary?.messName || "Mess Khata";
+  const [memberSummary, setMemberSummary] = useState<MemberSummary | null>({
+    messName: initialMessName,
+    role: initialRole
+  });
+  const [isRefreshingMember, setIsRefreshingMember] = useState(true);
+  const role = memberSummary?.role || initialRole;
+  const messName = memberSummary?.messName || initialMessName;
   const displayName = sessionUser?.name || sessionUser?.email?.split("@")[0] || "Member";
   const avatarInitial = displayName.charAt(0).toUpperCase();
 
@@ -37,6 +51,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {
         if (!ignore) setMemberSummary(null);
+      })
+      .finally(() => {
+        if (!ignore) setIsRefreshingMember(false);
       });
 
     return () => {
@@ -55,8 +72,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Link href="/dashboard" className="flex items-center gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.08] p-4 text-white shadow-xl shadow-slate-950/20 backdrop-blur">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-300 to-cyan-200 text-lg font-black text-slate-950 shadow-lg shadow-teal-950/20">M</div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-200">Mess</p>
-            <h1 className="text-lg font-black">Khata</h1>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-200">{role}</p>
+            <h1 className="max-w-40 truncate text-lg font-black">{messName}</h1>
           </div>
         </Link>
 
@@ -72,6 +89,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="min-w-0">
               <p className="truncate text-sm font-black text-white">{displayName}</p>
               {sessionUser?.email ? <p className="truncate text-xs font-semibold text-slate-300">{sessionUser.email}</p> : null}
+              {isRefreshingMember ? <div className="loading-shimmer mt-2 h-1.5 w-24 rounded-full bg-white/20" /> : null}
             </div>
           </div>
           <div className="mt-4 border-t border-white/10 pt-3">
@@ -86,14 +104,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-40 border-b border-white/80 bg-[#f7fbfa]/[0.78] px-4 py-4 shadow-sm shadow-slate-200/40 backdrop-blur-2xl md:px-8">
           <div className="mx-auto flex max-w-6xl items-center justify-between">
             <Link href="/dashboard" className="md:hidden">
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-teal-700">Mess Khata</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-teal-700">{role}</p>
               <h1 className="text-lg font-black">{messName}</h1>
             </Link>
             <div className="hidden md:block">
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-teal-700">{role}</p>
               <h1 className="text-xl font-black">{messName}</h1>
             </div>
-            <div className="rounded-full border border-white/80 bg-white/90 px-4 py-2 text-xs font-black text-slate-700 shadow-sm">May 2026</div>
+            <div className="rounded-full border border-white/80 bg-white/90 px-4 py-2 text-xs font-black text-slate-700 shadow-sm">{currentLabel}</div>
           </div>
         </header>
 

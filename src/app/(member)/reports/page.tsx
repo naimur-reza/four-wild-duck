@@ -1,5 +1,6 @@
 import { PageHeading } from "@/components/ui/page-heading";
 import { SectionCard } from "@/components/ui/section-card";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { closeMonth } from "@/app/(member)/actions";
 import { canManageMoney, getDashboardData } from "@/lib/data/ledger";
 import { formatTaka } from "@/lib/utils";
@@ -17,7 +18,7 @@ export default async function ReportsPage() {
         title="Report"
         action={canClose ? (
           <form action={closeMonth}>
-            <button className="rounded-2xl bg-teal-700 px-4 py-3 text-sm font-black text-white shadow-xl shadow-teal-100 transition hover:-translate-y-0.5 hover:bg-slate-950">Close month</button>
+            <SubmitButton pendingText="Closing..." className="rounded-2xl bg-teal-700 px-4 py-3 text-sm font-black text-white shadow-xl shadow-teal-100 transition hover:-translate-y-0.5 hover:bg-slate-950">Close month</SubmitButton>
           </form>
         ) : undefined}
       />

@@ -1,7 +1,6 @@
+import { CloseMonthPreview } from "@/components/reports/close-month-preview";
 import { PageHeading } from "@/components/ui/page-heading";
 import { SectionCard } from "@/components/ui/section-card";
-import { SubmitButton } from "@/components/ui/submit-button";
-import { closeMonth } from "@/app/(member)/actions";
 import { canManageMoney, getDashboardData } from "@/lib/data/ledger";
 import { formatTaka } from "@/lib/utils";
 
@@ -17,9 +16,24 @@ export default async function ReportsPage() {
         eyebrow="Sheet"
         title="Report"
         action={canClose ? (
-          <form action={closeMonth}>
-            <SubmitButton pendingText="Closing..." className="rounded-2xl bg-teal-700 px-4 py-3 text-sm font-black text-white shadow-xl shadow-teal-100 transition hover:-translate-y-0.5 hover:bg-slate-950">Close month</SubmitButton>
-          </form>
+          <CloseMonthPreview
+            monthLabel={ledger.month.label}
+            totalExpense={ledger.totalExpense}
+            monthlyShare={ledger.monthlyShare}
+            memberCount={ledger.memberCount}
+            totalDue={ledger.totalDue}
+            totalAdvance={ledger.totalAdvance}
+            rows={ledger.summaries.map((row) => ({
+              id: row.member.id,
+              name: row.member.profile.name,
+              previousBalance: row.previousBalance,
+              monthlyShare: row.monthlyShare,
+              expensePaid: row.expensePaid,
+              cashPaid: row.cashPaid,
+              totalContribution: row.totalContribution,
+              closingBalance: row.closingBalance
+            }))}
+          />
         ) : undefined}
       />
 

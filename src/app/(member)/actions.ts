@@ -15,6 +15,8 @@ import {
   toDecimal
 } from "@/lib/data/ledger";
 import { prisma } from "@/lib/db/prisma";
+import { notifyMessMembers } from "@/lib/notifications/web-push";
+import { formatTaka } from "@/lib/utils";
 
 const categories: ExpenseCategory[] = ["RENT", "BAZAR", "ELECTRICITY", "GAS", "INTERNET", "OTHER"];
 const roles: MessRole[] = ["OWNER", "MANAGER", "MEMBER"];
@@ -165,18 +167,35 @@ export async function addExpense(formData: FormData) {
 
   if (!canAddExpenseForMember(membership.role, membership.id, memberId)) return;
 
-  const member = await prisma.messMember.findFirst({ where: { id: memberId, messId: membership.messId, status: "ACTIVE" } });
+  const member = await prisma.messMember.findFirst({
+    where: { id: memberId, messId: membership.messId, status: "ACTIVE" },
+    include: { profile: true }
+  });
   if (!member) return;
+
+  const amount = toDecimal(formData.get("amount"));
+  const note = text(formData, "note") || null;
+  const category = getCategory(text(formData, "category"));
 
   await prisma.expense.create({
     data: {
       messId: membership.messId,
       monthId: month.id,
       memberId,
-      category: getCategory(text(formData, "category")),
-      amount: toDecimal(formData.get("amount")),
+      category,
+      amount,
       date: parseDate(formData.get("date")),
-      note: text(formData, "note") || null
+      note
+    }
+  });
+
+  await notifyMessMembers({
+    messId: membership.messId,
+    actorUserId: membership.userId,
+    payload: {
+      title: "New expense added",
+      body: `${member.profile.name} added ${formatTaka(Number(amount))}${note ? ` for ${note}` : ` in ${category}`}.`,
+      url: "/expenses"
     }
   });
 
@@ -257,6 +276,16 @@ export async function closeMonth() {
   const month = await getCurrentOpenMonth(membership.messId);
 
   await closeOpenMonth(membership.messId, month.id);
+
+  await notifyMessMembers({
+    messId: membership.messId,
+    actorUserId: membership.userId,
+    payload: {
+      title: "Month closed",
+      body: `${month.label} has been closed. Check the final report and carried balances.`,
+      url: "/reports"
+    }
+  });
 
   revalidatePath("/reports");
   revalidatePath("/history");

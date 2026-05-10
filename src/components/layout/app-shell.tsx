@@ -114,7 +114,7 @@ export function AppShell({
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <NotificationToggle />
-              <div className="rounded-full border border-white/80 bg-white/90 px-4 py-2 text-xs font-black text-slate-700 shadow-sm">{currentLabel}</div>
+              <Link href="/history" className="rounded-full border border-white/80 bg-white/90 px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-teal-50 hover:text-teal-700" title="View history">{currentLabel}</Link>
             </div>
           </div>
         </header>

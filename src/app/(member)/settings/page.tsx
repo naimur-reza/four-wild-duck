@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { ensureInviteLink, leaveMess, regenerateInviteLink, renameMess } from "@/app/(member)/actions";
+import { ensureInviteLink, leaveMess, regenerateInviteLink, renameMess, updateProfileName } from "@/app/(member)/actions";
 import { PageHeading } from "@/components/ui/page-heading";
 import { SectionCard } from "@/components/ui/section-card";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -15,15 +15,21 @@ const leaveMessages: Record<string, { tone: "warning" | "error"; text: string }>
   }
 };
 
+const profileMessages: Record<string, { tone: "warning" | "success"; text: string }> = {
+  "name-too-short": { tone: "warning", text: "Name must be at least 2 characters." },
+  "name-too-long": { tone: "warning", text: "Name must be 60 characters or less." }
+};
+
 function getBaseUrl(host: string | null, protocol: string | null) {
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
   if (!host) return "";
   return `${protocol || "https"}://${host}`;
 }
 
-export default async function SettingsPage({ searchParams }: { searchParams?: Promise<{ leaveStatus?: string }> }) {
+export default async function SettingsPage({ searchParams }: { searchParams?: Promise<{ leaveStatus?: string; profileStatus?: string }> }) {
   const params = await searchParams;
   const message = params?.leaveStatus ? leaveMessages[params.leaveStatus] : undefined;
+  const profileMessage = params?.profileStatus ? profileMessages[params.profileStatus] : undefined;
   const membership = await requireMembership();
   const [activeCount, messInvite] = await Promise.all([
     prisma.messMember.count({
@@ -49,7 +55,23 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
         </div>
       ) : null}
 
+      {profileMessage ? (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">
+          {profileMessage.text}
+        </div>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-2">
+        <SectionCard>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Your profile</p>
+          <h3 className="mt-3 text-xl font-black">Update your display name</h3>
+          <p className="mt-2 text-sm font-semibold text-slate-500">This name appears in expenses, payments, and the member list.</p>
+          <form action={updateProfileName} className="mt-4 flex gap-2">
+            <input name="name" className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none transition focus:border-teal-500 focus:bg-white" defaultValue={membership.profile.name} minLength={2} maxLength={60} required />
+            <SubmitButton className="rounded-2xl bg-teal-700 px-4 py-3 text-sm font-black text-white">Save</SubmitButton>
+          </form>
+        </SectionCard>
+
         <SectionCard>
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Mess name</p>
           <form action={renameMess} className="mt-4 flex gap-2">

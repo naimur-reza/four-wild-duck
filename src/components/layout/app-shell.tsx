@@ -5,11 +5,30 @@ import { signOut } from "@/app/actions/auth";
 import { getCurrentUser } from "@/lib/auth/ensure-profile";
 import { getActiveMembership } from "@/lib/auth/mess";
 
+type MessRelation = {
+  name?: string | null;
+};
+
+type MembershipWithMess = {
+  role?: string | null;
+  messes?: MessRelation | MessRelation[] | null;
+};
+
+function getMessName(membership: MembershipWithMess | null) {
+  const messes = membership?.messes;
+
+  if (Array.isArray(messes)) {
+    return messes[0]?.name ?? null;
+  }
+
+  return messes?.name ?? null;
+}
+
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
-  const membership = await getActiveMembership(user.id);
+  const membership = (await getActiveMembership(user.id)) as MembershipWithMess | null;
   const role = membership?.role || "MEMBER";
-  const messName = Array.isArray(membership?.messes) ? membership?.messes[0]?.name : membership?.messes?.name;
+  const messName = getMessName(membership);
 
   return (
     <div className="min-h-screen text-slate-950">

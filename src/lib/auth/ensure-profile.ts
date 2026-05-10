@@ -1,22 +1,30 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/db/prisma";
+import { stackServerApp } from "@/lib/auth/stack";
+
+function makeUsername(email?: string | null, fallback?: string | null) {
+  const base = email?.split("@")[0] || fallback || "member";
+  return base.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+}
 
 export async function getCurrentUser() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) redirect("/login");
+  const user = await stackServerApp.getUser();
+  if (!user) redirect("/login");
   return user;
 }
 
 export async function ensureProfile() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) redirect("/login");
+  const user = await getCurrentUser();
+  const email = user.primaryEmail || null;
+  const name = user.displayName || email?.split("@")[0] || "Member";
+  const avatarUrl = user.profileImageUrl || null;
+  const username = makeUsername(email, name);
 
-  const fullName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Member";
-  const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
-  const username = user.email?.split("@")[0]?.toLowerCase().replace(/[^a-z0-9_\-]/g, "-") || null;
+  await prisma.profile.upsert({
+    where: { userId: user.id },
+    update: { name, email, avatarUrl },
+    create: { userId: user.id, name, email, avatarUrl, username }
+  });
 
-  await supabase.from("profiles").upsert({ user_id: user.id, name: fullName, username, avatar_url: avatarUrl, email: user.email }, { onConflict: "user_id" });
   return user;
 }

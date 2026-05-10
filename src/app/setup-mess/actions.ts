@@ -1,20 +1,39 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db/prisma";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
-import { createClient } from "@/lib/supabase/server";
 
 export async function createMess(formData: FormData) {
   const user = await ensureProfile();
-  const supabase = await createClient();
   const name = String(formData.get("name") || "").trim();
   const openingBalance = Number(formData.get("opening_balance") || 0);
+
   if (!name) return;
 
-  const { data: mess, error: messError } = await supabase.from("messes").insert({ name, created_by: user.id }).select("id").single();
-  if (messError || !mess) throw new Error(messError?.message || "Could not create mess");
+  const mess = await prisma.mess.create({
+    data: {
+      name,
+      createdBy: user.id,
+      members: {
+        create: {
+          userId: user.id,
+          role: "OWNER",
+          openingBalance,
+          status: "ACTIVE"
+        }
+      }
+    }
+  });
 
-  const { error: memberError } = await supabase.from("mess_members").insert({ mess_id: mess.id, user_id: user.id, role: "OWNER", opening_balance: openingBalance, status: "active" });
-  if (memberError) throw new Error(memberError.message);
+  await prisma.month.create({
+    data: {
+      messId: mess.id,
+      label: new Date().toLocaleString("en-US", { month: "long", year: "numeric" }),
+      memberCount: 1,
+      status: "OPEN"
+    }
+  });
+
   redirect("/dashboard");
 }

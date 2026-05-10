@@ -1,34 +1,15 @@
 import Link from "next/link";
+import { UserButton } from "@stackframe/stack";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
-import { signOut } from "@/app/actions/auth";
 import { getCurrentUser } from "@/lib/auth/ensure-profile";
 import { getActiveMembership } from "@/lib/auth/mess";
 
-type MessRelation = {
-  name?: string | null;
-};
-
-type MembershipWithMess = {
-  role?: string | null;
-  messes?: MessRelation | MessRelation[] | null;
-};
-
-function getMessName(membership: MembershipWithMess | null) {
-  const messes = membership?.messes;
-
-  if (Array.isArray(messes)) {
-    return messes[0]?.name ?? null;
-  }
-
-  return messes?.name ?? null;
-}
-
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
-  const membership = (await getActiveMembership(user.id)) as MembershipWithMess | null;
+  const membership = await getActiveMembership(user.id);
   const role = membership?.role || "MEMBER";
-  const messName = getMessName(membership);
+  const messName = membership?.mess?.name || "No mess";
 
   return (
     <div className="min-h-screen text-slate-950">
@@ -45,10 +26,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="absolute bottom-5 left-5 right-5 rounded-[1.5rem] border border-slate-200 bg-white p-4">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">{role}</p>
-          <p className="mt-1 truncate text-sm font-black text-slate-900">{messName || "No mess"}</p>
-          <form action={signOut}>
-            <button className="mt-3 text-xs font-black text-rose-600">Sign out</button>
-          </form>
+          <p className="mt-1 truncate text-sm font-black text-slate-900">{messName}</p>
+          <div className="mt-4"><UserButton /></div>
         </div>
       </aside>
 
@@ -57,14 +36,15 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           <div className="mx-auto flex max-w-6xl items-center justify-between">
             <Link href="/dashboard" className="md:hidden">
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-teal-600">Mess Khata</p>
-              <h1 className="text-lg font-black">{messName || "Dashboard"}</h1>
+              <h1 className="text-lg font-black">{messName}</h1>
             </Link>
             <div className="hidden md:block">
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-teal-600">{role}</p>
-              <h1 className="text-xl font-black">{messName || "Dashboard"}</h1>
+              <h1 className="text-xl font-black">{messName}</h1>
             </div>
-            <div className="rounded-full border border-white bg-white/80 px-4 py-2 text-xs font-black text-slate-700 shadow-sm">
-              May 2026
+            <div className="flex items-center gap-3">
+              <div className="rounded-full border border-white bg-white/80 px-4 py-2 text-xs font-black text-slate-700 shadow-sm">May 2026</div>
+              <div className="md:hidden"><UserButton /></div>
             </div>
           </div>
         </header>

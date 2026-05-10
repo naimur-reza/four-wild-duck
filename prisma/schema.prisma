@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum MessRole {
+  OWNER
+  MANAGER
+  MEMBER
+}
+
+enum MemberStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MonthStatus {
+  OPEN
+  CLOSED
+}
+
+enum ExpenseCategory {
+  RENT
+  BAZAR
+  ELECTRICITY
+  GAS
+  INTERNET
+  OTHER
+}
+
+model Profile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  name      String
+  username  String?  @unique
+  email     String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships MessMember[]
+}
+
+model Mess {
+  id        String   @id @default(cuid())
+  name      String
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members      MessMember[]
+  months       Month[]
+  expenses     Expense[]
+  cashPayments CashPayment[]
+  summaries    MonthlySummary[]
+}
+
+model MessMember {
+  id             String       @id @default(cuid())
+  messId         String
+  userId         String
+  role           MessRole     @default(MEMBER)
+  openingBalance Decimal      @default(0) @db.Decimal(12, 2)
+  status         MemberStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  mess    Mess    @relation(fields: [messId], references: [id], onDelete: Cascade)
+  profile Profile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  expenses     Expense[]
+  cashPayments CashPayment[]
+  summaries    MonthlySummary[]
+
+  @@unique([messId, userId])
+  @@index([userId])
+  @@index([messId])
+}
+
+model Month {
+  id          String      @id @default(cuid())
+  messId      String
+  label       String
+  memberCount Int         @default(4)
+  status      MonthStatus @default(OPEN)
+  createdAt   DateTime    @default(now())
+  closedAt    DateTime?
+
+  mess         Mess             @relation(fields: [messId], references: [id], onDelete: Cascade)
+  expenses     Expense[]
+  cashPayments CashPayment[]
+  summaries    MonthlySummary[]
+
+  @@index([messId])
+}
+
+model Expense {
+  id        String          @id @default(cuid())
+  messId    String
+  monthId   String?
+  memberId  String?
+  category  ExpenseCategory
+  amount    Decimal         @db.Decimal(12, 2)
+  date      DateTime
+  note      String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  mess   Mess        @relation(fields: [messId], references: [id], onDelete: Cascade)
+  month  Month?      @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  member MessMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@index([messId])
+  @@index([monthId])
+  @@index([memberId])
+}
+
+model CashPayment {
+  id        String   @id @default(cuid())
+  messId    String
+  monthId   String?
+  memberId  String
+  amount    Decimal  @db.Decimal(12, 2)
+  date      DateTime
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mess   Mess       @relation(fields: [messId], references: [id], onDelete: Cascade)
+  month  Month?     @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  member MessMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([messId])
+  @@index([monthId])
+  @@index([memberId])
+}
+
+model MonthlySummary {
+  id                String   @id @default(cuid())
+  messId            String
+  monthId           String
+  memberId          String
+  previousBalance   Decimal  @default(0) @db.Decimal(12, 2)
+  monthlyShare      Decimal  @default(0) @db.Decimal(12, 2)
+  expensePaid       Decimal  @default(0) @db.Decimal(12, 2)
+  cashPaid          Decimal  @default(0) @db.Decimal(12, 2)
+  totalContribution Decimal  @default(0) @db.Decimal(12, 2)
+  closingBalance    Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt         DateTime @default(now())
+
+  mess   Mess       @relation(fields: [messId], references: [id], onDelete: Cascade)
+  month  Month      @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  member MessMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([monthId, memberId])
+  @@index([messId])
+}

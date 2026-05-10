@@ -57,34 +57,34 @@ export async function getCurrentUser() {
 export async function ensureProfile() {
   const user = await getCurrentUser();
   const email = user.email || null;
-  const name = user.name || email?.split("@")[0] || "Member";
+  const sessionName = user.name || email?.split("@")[0] || "Member";
   const avatarUrl = user.image || null;
 
   const existingProfile = await prisma.profile.findUnique({
     where: { userId: user.id },
-    select: { id: true }
+    select: { id: true, name: true }
   });
 
   if (existingProfile) {
     await prisma.profile.update({
       where: { userId: user.id },
-      data: { name, email, avatarUrl }
+      data: { email, avatarUrl }
     });
     return user;
   }
 
-  const username = await getAvailableUsername(makeUsername(email, name), user.id);
+  const username = await getAvailableUsername(makeUsername(email, sessionName), user.id);
 
   try {
     await prisma.profile.create({
-      data: { userId: user.id, name, email, avatarUrl, username }
+      data: { userId: user.id, name: sessionName, email, avatarUrl, username }
     });
   } catch {
     const fallbackUsername = await getAvailableUsername(`${username}-${Date.now().toString(36)}`, user.id);
     await prisma.profile.upsert({
       where: { userId: user.id },
-      update: { name, email, avatarUrl },
-      create: { userId: user.id, name, email, avatarUrl, username: fallbackUsername }
+      update: { email, avatarUrl },
+      create: { userId: user.id, name: sessionName, email, avatarUrl, username: fallbackUsername }
     });
   }
 

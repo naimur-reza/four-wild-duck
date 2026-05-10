@@ -196,6 +196,30 @@ export async function updateMember(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function updateOpeningBalance(formData: FormData) {
+  const membership = await requireMembership();
+  if (!canManageMoney(membership.role)) redirect("/settings");
+
+  const memberId = text(formData, "member_id");
+  if (!memberId) return;
+
+  const target = await prisma.messMember.findFirst({
+    where: { id: memberId, messId: membership.messId },
+    select: { id: true }
+  });
+
+  if (!target) return;
+
+  await prisma.messMember.update({
+    where: { id: memberId },
+    data: { openingBalance: toDecimal(formData.get("opening_balance")) }
+  });
+
+  revalidateMoneyViews();
+  revalidatePath("/settings");
+  refresh();
+}
+
 export async function updateProfileName(formData: FormData) {
   const membership = await requireMembership();
   const name = text(formData, "name");

@@ -1,9 +1,10 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { Pencil, Trash2 } from "lucide-react";
 import { AddButton } from "@/components/ui/add-button";
 import { PageHeading } from "@/components/ui/page-heading";
 import { SectionCard } from "@/components/ui/section-card";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { addPayment } from "@/app/(member)/actions";
+import { addPayment, deletePayment, updatePayment } from "@/app/(member)/actions";
 import { canManageMoney, endOfDay, formatDateInput, getCurrentOpenMonth, getMessMembers, getMessMonths, requireMembership, startOfDay } from "@/lib/data/ledger";
 import { prisma } from "@/lib/db/prisma";
 import { formatTaka } from "@/lib/utils";
@@ -19,6 +20,10 @@ type PaymentFilters = {
 
 function prettyDate(date: Date) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function dateInputValue(date: Date) {
+  return date.toISOString().slice(0, 10);
 }
 
 export default async function PaymentsPage({ searchParams }: { searchParams: Promise<PaymentFilters> }) {
@@ -109,13 +114,37 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
 
           {payments.map((payment) => (
             <SectionCard key={payment.id} className="p-3 sm:p-4 md:p-4">
-              <div className="flex items-start justify-between gap-3 sm:gap-4">
-                <div className="min-w-0">
-                  <h3 className="truncate text-sm font-black sm:text-base">{payment.member.profile.name}</h3>
-                  <p className="mt-0.5 truncate text-[10px] font-semibold text-slate-400 sm:mt-1 sm:text-xs">{payment.note || "Cash payment"} • {prettyDate(payment.date)}</p>
-                </div>
-                <p className="shrink-0 rounded-xl bg-emerald-50 px-3 py-1.5 text-sm font-black text-emerald-700 ring-1 ring-emerald-100 sm:rounded-2xl sm:px-3 sm:py-2 sm:text-lg">{formatTaka(Number(payment.amount))}</p>
-              </div>
+              <details className="group">
+                <summary className="flex cursor-pointer list-none items-start justify-between gap-3 sm:gap-4">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-black sm:text-base">{payment.member.profile.name}</h3>
+                    <p className="mt-0.5 truncate text-[10px] font-semibold text-slate-400 sm:mt-1 sm:text-xs">{payment.note || "Cash payment"} • {prettyDate(payment.date)}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="rounded-xl bg-emerald-50 px-3 py-1.5 text-sm font-black text-emerald-700 ring-1 ring-emerald-100 sm:rounded-2xl sm:px-3 sm:py-2 sm:text-lg">{formatTaka(Number(payment.amount))}</p>
+                    {canAdd ? <p className="mt-0.5 text-[10px] font-bold text-teal-700 group-open:hidden sm:mt-1 sm:text-xs">Edit</p> : null}
+                  </div>
+                </summary>
+
+                {canAdd ? (
+                  <div className="mt-3 border-t border-slate-100 pt-3 sm:mt-4 sm:pt-4">
+                    <form action={updatePayment} className="grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                      <input type="hidden" name="payment_id" value={payment.id} />
+                      <select name="member_id" defaultValue={payment.memberId} className="col-span-2 h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black outline-none focus:border-teal-500 sm:col-span-1 sm:h-11 sm:rounded-2xl">
+                        {activeMembers.map((member) => <option key={member.id} value={member.id}>{member.profile.name}</option>)}
+                      </select>
+                      <input name="amount" type="number" step="0.01" min="0" defaultValue={Number(payment.amount)} className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black outline-none focus:border-teal-500 sm:h-11 sm:rounded-2xl" />
+                      <input name="date" type="date" defaultValue={dateInputValue(payment.date)} className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black outline-none focus:border-teal-500 sm:h-11 sm:rounded-2xl" />
+                      <input name="note" defaultValue={payment.note || ""} className="col-span-2 h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black outline-none focus:border-teal-500 sm:h-11 sm:rounded-2xl xl:col-span-2" placeholder="Note" />
+                      <SubmitButton pendingText="..." className="h-10 rounded-xl bg-slate-950 px-4 text-xs font-black text-white sm:h-11 sm:rounded-2xl"><Pencil className="mr-1 inline h-3 w-3" />Save</SubmitButton>
+                    </form>
+                    <form action={deletePayment} className="mt-2 flex justify-end">
+                      <input type="hidden" name="payment_id" value={payment.id} />
+                      <SubmitButton pendingText="..." className="rounded-xl bg-rose-50 px-3 py-2 text-[10px] font-black text-rose-700 ring-1 ring-rose-100 hover:bg-rose-100 sm:rounded-2xl sm:px-4 sm:text-xs"><Trash2 className="mr-1 inline h-3 w-3" />Delete</SubmitButton>
+                    </form>
+                  </div>
+                ) : null}
+              </details>
             </SectionCard>
           ))}
         </div>

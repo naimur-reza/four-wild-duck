@@ -37,6 +37,7 @@ export function AppShell({
     role: initialRole
   });
   const [isRefreshingMember, setIsRefreshingMember] = useState(true);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const role = memberSummary?.role || initialRole;
   const messName = memberSummary?.messName || initialMessName;
   const displayName = sessionUser?.name || sessionUser?.email?.split("@")[0] || "Member";
@@ -62,9 +63,9 @@ export function AppShell({
     };
   }, []);
 
-  async function handleSignOut() {
-    await authClient.signOut();
-    window.location.assign("/login");
+  function handleSignOut() {
+    setIsSigningOut(true);
+    window.location.assign("/logout");
   }
 
   return (
@@ -97,7 +98,7 @@ export function AppShell({
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-teal-200">{role}</p>
             <p className="mt-1 truncate text-sm font-black text-white">{messName}</p>
           </div>
-          <button type="button" onClick={handleSignOut} className="mt-3 text-xs font-black text-rose-200 transition hover:text-white">Sign out</button>
+          <button type="button" onClick={handleSignOut} disabled={isSigningOut} className="mt-3 text-xs font-black text-rose-200 transition hover:text-white disabled:cursor-wait disabled:opacity-60">{isSigningOut ? "Signing out..." : "Sign out"}</button>
         </div>
       </aside>
 

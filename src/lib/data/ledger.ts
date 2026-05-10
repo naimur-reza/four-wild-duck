@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { currentMonthLabel, nextMonthLabel } from "@/lib/utils";
 
 export type ActiveMembership = MessMember & {
-  mess: { id: string; name: string; createdBy: string };
+  mess: { id: string; name: string; inviteCode: string | null; createdBy: string };
   profile: Profile;
 };
 

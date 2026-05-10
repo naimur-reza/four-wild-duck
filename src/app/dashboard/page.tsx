@@ -7,6 +7,8 @@ import { SectionCard } from "@/components/ui/section-card";
 import { demoLedger } from "@/lib/data/demo-ledger";
 import { formatTaka } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default function DashboardPage() {
   const totalDue = demoLedger.summaries.filter((row) => row.closingBalance > 0).reduce((sum, row) => sum + row.closingBalance, 0);
   const totalAdvance = demoLedger.summaries.filter((row) => row.closingBalance < 0).reduce((sum, row) => sum + Math.abs(row.closingBalance), 0);

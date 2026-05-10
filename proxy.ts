@@ -14,6 +14,7 @@ export const config = {
     "/history/:path*",
     "/settings/:path*",
     "/setup-mess/:path*",
-    "/onboarding/:path*"
+    "/onboarding/:path*",
+    "/auth/callback/:path*"
   ]
 };

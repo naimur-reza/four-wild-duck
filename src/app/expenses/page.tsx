@@ -5,6 +5,8 @@ import { SectionCard } from "@/components/ui/section-card";
 import { demoExpenses, demoMembers } from "@/lib/data/demo-ledger";
 import { formatTaka } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default function ExpensesPage() {
   return (
     <AppShell>

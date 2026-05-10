@@ -1,5 +1,5 @@
 "use client";
 
-import { createAuthClient } from "@neondatabase/neon-js/auth";
+import { createAuthClient } from "@neondatabase/auth/next";
 
-export const authClient = createAuthClient(process.env.NEXT_PUBLIC_NEON_AUTH_URL!);
+export const authClient = createAuthClient();

@@ -1,4 +1,4 @@
-import type { MessRole } from "@prisma/client";
+import type { MessRole } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 
 export async function getActiveMembership(userId: string) {

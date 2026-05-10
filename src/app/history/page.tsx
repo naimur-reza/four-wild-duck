@@ -4,6 +4,8 @@ import { SectionCard } from "@/components/ui/section-card";
 
 const months = ["April 2026", "March 2026", "February 2026"];
 
+export const dynamic = "force-dynamic";
+
 export default function HistoryPage() {
   return (
     <AppShell>

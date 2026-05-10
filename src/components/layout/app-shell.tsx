@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { signOut } from "@/app/actions/auth";
 import { getCurrentUser } from "@/lib/auth/ensure-profile";
 import { getActiveMembership } from "@/lib/auth/mess";
 
@@ -9,6 +10,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   const membership = await getActiveMembership(user.id);
   const role = membership?.role || "MEMBER";
   const messName = membership?.mess?.name || "No mess";
+  const displayName = user.name || user.email?.split("@")[0] || "Member";
+  const avatarInitial = displayName.charAt(0).toUpperCase();
 
   return (
     <div className="min-h-screen text-slate-950">
@@ -24,9 +27,22 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         <SidebarNav />
 
         <div className="absolute bottom-5 left-5 right-5 rounded-[1.5rem] border border-slate-200 bg-white p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">{role}</p>
-          <p className="mt-1 truncate text-sm font-black text-slate-900">{messName}</p>
-          <form action="/api/auth/sign-out" method="post">
+          <div className="flex items-center gap-3">
+            {user.image ? (
+              <img src={user.image} alt="" className="h-11 w-11 rounded-2xl object-cover" />
+            ) : (
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-teal-300">{avatarInitial}</div>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black text-slate-900">{displayName}</p>
+              {user.email ? <p className="truncate text-xs font-semibold text-slate-400">{user.email}</p> : null}
+            </div>
+          </div>
+          <div className="mt-4 border-t border-slate-100 pt-3">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">{role}</p>
+            <p className="mt-1 truncate text-sm font-black text-slate-900">{messName}</p>
+          </div>
+          <form action={signOut}>
             <button className="mt-3 text-xs font-black text-rose-600">Sign out</button>
           </form>
         </div>

@@ -2,6 +2,8 @@ import { AppShell } from "@/components/layout/app-shell";
 import { PageHeading } from "@/components/ui/page-heading";
 import { SectionCard } from "@/components/ui/section-card";
 
+export const dynamic = "force-dynamic";
+
 export default function SettingsPage() {
   return (
     <AppShell>

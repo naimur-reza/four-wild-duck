@@ -1,25 +1,19 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { auth } from "@/lib/auth/server";
-import { LoginView } from "./login-view";
+import { LoginCard } from "./login-card";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
   const { data } = await auth.getSession();
-  if (data?.user) redirect("/onboarding");
+  if (data?.user) redirect("/dashboard");
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-10 text-slate-950">
-      <section className="w-full max-w-md rounded-[2rem] border border-white bg-white/85 p-6 shadow-2xl shadow-slate-200/70 backdrop-blur md:p-8">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-slate-950 to-slate-800 text-2xl font-black text-teal-300">M</div>
-        <div className="mt-6 text-center">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-teal-600">Mess Khata</p>
-          <h1 className="mt-2 text-3xl font-black">Sign in</h1>
-        </div>
-        <div className="mt-8">
-          <LoginView />
-        </div>
-      </section>
+      <Suspense>
+        <LoginCard />
+      </Suspense>
     </main>
   );
 }

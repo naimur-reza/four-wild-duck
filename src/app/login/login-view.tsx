@@ -1,6 +1,6 @@
 "use client";
 
-import { AuthView, NeonAuthUIProvider } from "@neondatabase/neon-js/auth/react/ui";
+import { AuthView, NeonAuthUIProvider } from "@neondatabase/auth/react/ui";
 import { authClient } from "@/lib/auth/client";
 
 export function LoginView() {

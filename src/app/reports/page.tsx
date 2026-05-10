@@ -4,6 +4,8 @@ import { SectionCard } from "@/components/ui/section-card";
 import { demoLedger } from "@/lib/data/demo-ledger";
 import { formatTaka } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default function ReportsPage() {
   return (
     <AppShell>

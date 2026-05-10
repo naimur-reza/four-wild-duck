@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { currentMonthLabel, nextMonthLabel } from "@/lib/utils";
 
 export type ActiveMembership = MessMember & {
-  mess: { id: string; name: string; inviteCode: string | null; createdBy: string };
+  mess: { id: string; name: string; createdBy: string };
   profile: Profile;
 };
 
@@ -61,7 +61,16 @@ export async function requireMembership(): Promise<ActiveMembership> {
   const user = await ensureProfile();
   const membership = await prisma.messMember.findFirst({
     where: { userId: user.id, status: "ACTIVE" },
-    include: { mess: true, profile: true },
+    include: {
+      profile: true,
+      mess: {
+        select: {
+          id: true,
+          name: true,
+          createdBy: true
+        }
+      }
+    },
     orderBy: { createdAt: "asc" }
   });
 

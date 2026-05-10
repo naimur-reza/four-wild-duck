@@ -1,15 +1,12 @@
-import { AppShell } from "@/components/layout/app-shell";
 import { AddButton } from "@/components/ui/add-button";
 import { PageHeading } from "@/components/ui/page-heading";
 import { SectionCard } from "@/components/ui/section-card";
 import { demoMembers } from "@/lib/data/demo-ledger";
 import { formatTaka } from "@/lib/utils";
 
-export const dynamic = "force-dynamic";
-
 export default function MembersPage() {
   return (
-    <AppShell>
+    <>
       <PageHeading eyebrow="People" title="Members" action={<AddButton>Add</AddButton>} />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {demoMembers.map((member, index) => (
@@ -22,15 +19,15 @@ export default function MembersPage() {
                   <p className="text-xs font-semibold text-slate-400">Member #{index + 1}</p>
                 </div>
               </div>
-              <span className="rounded-full bg-teal-100 px-3 py-1 text-xs font-black text-teal-700">Active</span>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">Active</span>
             </div>
-            <div className="mt-5 rounded-3xl bg-slate-50 p-4">
+            <div className="mt-5 rounded-[1.35rem] border border-slate-100 bg-slate-50/80 p-4">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Opening</p>
               <p className="mt-2 text-2xl font-black">{formatTaka(member.openingBalance)}</p>
             </div>
           </SectionCard>
         ))}
       </div>
-    </AppShell>
+    </>
   );
 }

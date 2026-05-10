@@ -1,7 +1,7 @@
 export function formatTaka(amount: number) {
-  return new Intl.NumberFormat("en-BD", {
-    style: "currency",
-    currency: "BDT",
+  const value = new Intl.NumberFormat("en-BD", {
     maximumFractionDigits: 0
   }).format(amount);
+
+  return `৳${value}`;
 }

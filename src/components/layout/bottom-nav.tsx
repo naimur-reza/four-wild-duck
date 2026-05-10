@@ -9,7 +9,7 @@ export function BottomNav() {
   const items = dashboardNavItems.slice(0, 5);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200/70 bg-white/90 px-2 pb-2 pt-2 shadow-[0_-18px_40px_rgba(15,23,42,0.10)] backdrop-blur-2xl md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/80 bg-white/[0.92] px-2 pb-2 pt-2 shadow-[0_-18px_40px_rgba(15,23,42,0.12)] backdrop-blur-2xl md:hidden">
       <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
         {items.map((item) => {
           const Icon = item.icon;
@@ -20,7 +20,7 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-[10px] font-bold transition ${
-                active ? "bg-slate-950 text-white" : "text-slate-400 hover:bg-slate-100 hover:text-slate-950"
+                active ? "bg-slate-950 text-white shadow-lg shadow-slate-200" : "text-slate-400 hover:bg-slate-100 hover:text-slate-950"
               }`}
             >
               <Icon className={`mb-1 h-4 w-4 ${active ? "text-teal-300" : ""}`} />

@@ -42,20 +42,16 @@ function looksLikeEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function revalidateExpenseViews() {
+function revalidateMoneyViews() {
   revalidatePath("/expenses");
-  revalidatePath("/dashboard");
-  revalidatePath("/reports");
-}
-
-function revalidatePaymentViews() {
   revalidatePath("/payments");
   revalidatePath("/dashboard");
   revalidatePath("/reports");
+  revalidatePath("/history");
 }
 
-function refreshPaymentViews() {
-  revalidatePaymentViews();
+function refreshMoneyViews() {
+  revalidateMoneyViews();
   refresh();
 }
 
@@ -176,6 +172,7 @@ export async function addExpense(formData: FormData) {
   const month = await getCurrentOpenMonth(membership.messId);
   const memberId = text(formData, "member_id") || membership.id;
 
+  if (month.status !== "OPEN") return;
   if (!canAddExpenseForMember(membership.role, membership.id, memberId)) return;
 
   const member = await prisma.messMember.findFirst({
@@ -188,16 +185,18 @@ export async function addExpense(formData: FormData) {
   const note = text(formData, "note") || null;
   const category = getCategory(text(formData, "category"));
 
-  await prisma.expense.create({
-    data: {
-      messId: membership.messId,
-      monthId: month.id,
-      memberId,
-      category,
-      amount,
-      date: parseDate(formData.get("date")),
-      note
-    }
+  await prisma.$transaction(async (tx) => {
+    await tx.expense.create({
+      data: {
+        messId: membership.messId,
+        monthId: month.id,
+        memberId,
+        category,
+        amount,
+        date: parseDate(formData.get("date")),
+        note
+      }
+    });
   });
 
   await notifyMessMembers({
@@ -210,7 +209,7 @@ export async function addExpense(formData: FormData) {
     }
   });
 
-  revalidateExpenseViews();
+  refreshMoneyViews();
 }
 
 export async function updateExpense(formData: FormData) {
@@ -219,26 +218,31 @@ export async function updateExpense(formData: FormData) {
   const memberId = text(formData, "member_id") || membership.id;
   if (!expenseId) return;
 
-  const expense = await prisma.expense.findFirst({ where: { id: expenseId, messId: membership.messId } });
-  if (!expense) return;
-  if (!canAddExpenseForMember(membership.role, membership.id, expense.memberId || "")) return;
-  if (!canAddExpenseForMember(membership.role, membership.id, memberId)) return;
+  await prisma.$transaction(async (tx) => {
+    const expense = await tx.expense.findFirst({
+      where: { id: expenseId, messId: membership.messId },
+      include: { month: { select: { status: true } } }
+    });
+    if (!expense || expense.month?.status !== "OPEN") return;
+    if (!canAddExpenseForMember(membership.role, membership.id, expense.memberId || "")) return;
+    if (!canAddExpenseForMember(membership.role, membership.id, memberId)) return;
 
-  const member = await prisma.messMember.findFirst({ where: { id: memberId, messId: membership.messId, status: "ACTIVE" } });
-  if (!member) return;
+    const member = await tx.messMember.findFirst({ where: { id: memberId, messId: membership.messId, status: "ACTIVE" } });
+    if (!member) return;
 
-  await prisma.expense.update({
-    where: { id: expenseId },
-    data: {
-      memberId,
-      category: getCategory(text(formData, "category")),
-      amount: toDecimal(formData.get("amount")),
-      date: parseDate(formData.get("date")),
-      note: text(formData, "note") || null
-    }
+    await tx.expense.update({
+      where: { id: expenseId },
+      data: {
+        memberId,
+        category: getCategory(text(formData, "category")),
+        amount: toDecimal(formData.get("amount")),
+        date: parseDate(formData.get("date")),
+        note: text(formData, "note") || null
+      }
+    });
   });
 
-  revalidateExpenseViews();
+  refreshMoneyViews();
 }
 
 export async function deleteExpense(formData: FormData) {
@@ -246,13 +250,18 @@ export async function deleteExpense(formData: FormData) {
   const expenseId = text(formData, "expense_id");
   if (!expenseId) return;
 
-  const expense = await prisma.expense.findFirst({ where: { id: expenseId, messId: membership.messId } });
-  if (!expense) return;
-  if (!canAddExpenseForMember(membership.role, membership.id, expense.memberId || "")) return;
+  await prisma.$transaction(async (tx) => {
+    const expense = await tx.expense.findFirst({
+      where: { id: expenseId, messId: membership.messId },
+      include: { month: { select: { status: true } } }
+    });
+    if (!expense || expense.month?.status !== "OPEN") return;
+    if (!canAddExpenseForMember(membership.role, membership.id, expense.memberId || "")) return;
 
-  await prisma.expense.delete({ where: { id: expenseId } });
+    await tx.expense.delete({ where: { id: expenseId } });
+  });
 
-  revalidateExpenseViews();
+  refreshMoneyViews();
 }
 
 export async function addPayment(formData: FormData) {
@@ -261,22 +270,26 @@ export async function addPayment(formData: FormData) {
 
   const month = await getCurrentOpenMonth(membership.messId);
   const memberId = text(formData, "member_id");
+  if (month.status !== "OPEN") return;
+
   const member = await prisma.messMember.findFirst({ where: { id: memberId, messId: membership.messId, status: "ACTIVE" } });
 
   if (!member) return;
 
-  await prisma.cashPayment.create({
-    data: {
-      messId: membership.messId,
-      monthId: month.id,
-      memberId,
-      amount: toDecimal(formData.get("amount")),
-      date: parseDate(formData.get("date")),
-      note: text(formData, "note") || null
-    }
+  await prisma.$transaction(async (tx) => {
+    await tx.cashPayment.create({
+      data: {
+        messId: membership.messId,
+        monthId: month.id,
+        memberId,
+        amount: toDecimal(formData.get("amount")),
+        date: parseDate(formData.get("date")),
+        note: text(formData, "note") || null
+      }
+    });
   });
 
-  refreshPaymentViews();
+  refreshMoneyViews();
 }
 
 export async function updatePayment(formData: FormData) {
@@ -287,24 +300,29 @@ export async function updatePayment(formData: FormData) {
   const memberId = text(formData, "member_id");
   if (!paymentId || !memberId) return;
 
-  const [payment, member] = await Promise.all([
-    prisma.cashPayment.findFirst({ where: { id: paymentId, messId: membership.messId } }),
-    prisma.messMember.findFirst({ where: { id: memberId, messId: membership.messId, status: "ACTIVE" } })
-  ]);
+  await prisma.$transaction(async (tx) => {
+    const [payment, member] = await Promise.all([
+      tx.cashPayment.findFirst({
+        where: { id: paymentId, messId: membership.messId },
+        include: { month: { select: { status: true } } }
+      }),
+      tx.messMember.findFirst({ where: { id: memberId, messId: membership.messId, status: "ACTIVE" } })
+    ]);
 
-  if (!payment || !member) return;
+    if (!payment || payment.month?.status !== "OPEN" || !member) return;
 
-  await prisma.cashPayment.update({
-    where: { id: paymentId },
-    data: {
-      memberId,
-      amount: toDecimal(formData.get("amount")),
-      date: parseDate(formData.get("date")),
-      note: text(formData, "note") || null
-    }
+    await tx.cashPayment.update({
+      where: { id: paymentId },
+      data: {
+        memberId,
+        amount: toDecimal(formData.get("amount")),
+        date: parseDate(formData.get("date")),
+        note: text(formData, "note") || null
+      }
+    });
   });
 
-  refreshPaymentViews();
+  refreshMoneyViews();
 }
 
 export async function deletePayment(formData: FormData) {
@@ -314,12 +332,17 @@ export async function deletePayment(formData: FormData) {
   const paymentId = text(formData, "payment_id");
   if (!paymentId) return;
 
-  const payment = await prisma.cashPayment.findFirst({ where: { id: paymentId, messId: membership.messId } });
-  if (!payment) return;
+  await prisma.$transaction(async (tx) => {
+    const payment = await tx.cashPayment.findFirst({
+      where: { id: paymentId, messId: membership.messId },
+      include: { month: { select: { status: true } } }
+    });
+    if (!payment || payment.month?.status !== "OPEN") return;
 
-  await prisma.cashPayment.delete({ where: { id: paymentId } });
+    await tx.cashPayment.delete({ where: { id: paymentId } });
+  });
 
-  refreshPaymentViews();
+  refreshMoneyViews();
 }
 
 export async function closeMonth() {
@@ -339,9 +362,7 @@ export async function closeMonth() {
     }
   });
 
-  revalidatePath("/reports");
-  revalidatePath("/history");
-  revalidatePath("/dashboard");
+  refreshMoneyViews();
 }
 
 export async function renameMess(formData: FormData) {

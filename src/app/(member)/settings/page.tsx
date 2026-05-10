@@ -4,6 +4,7 @@ import {
   leaveMess,
   regenerateInviteLink,
   renameMess,
+  transferOwnership,
   updateOpeningBalance,
   updateProfileName,
 } from "@/app/(member)/actions";
@@ -22,7 +23,7 @@ const leaveMessages: Record<
 > = {
   "owner-needs-transfer": {
     tone: "warning",
-    text: "You are the only owner. Make another active member owner/manager first, or leave only when you are the only member.",
+    text: "You are the only owner. Transfer ownership to another active member first, or leave only when you are the only member.",
   },
 };
 
@@ -40,6 +41,21 @@ const profileMessages: Record<
   },
 };
 
+const ownershipMessages: Record<string, { tone: "warning" | "success"; text: string }> = {
+  transferred: {
+    tone: "success",
+    text: "Ownership transferred successfully. You are now a manager.",
+  },
+  "owner-only": {
+    tone: "warning",
+    text: "Only the current owner can transfer ownership.",
+  },
+  "invalid-target": {
+    tone: "warning",
+    text: "Select another active member to transfer ownership.",
+  },
+};
+
 function getBaseUrl(host: string | null, protocol: string | null) {
   if (process.env.NEXT_PUBLIC_APP_URL)
     return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
@@ -50,7 +66,7 @@ function getBaseUrl(host: string | null, protocol: string | null) {
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ leaveStatus?: string; profileStatus?: string }>;
+  searchParams?: Promise<{ leaveStatus?: string; profileStatus?: string; ownershipStatus?: string }>;
 }) {
   const params = await searchParams;
   const message = params?.leaveStatus
@@ -58,6 +74,9 @@ export default async function SettingsPage({
     : undefined;
   const profileMessage = params?.profileStatus
     ? profileMessages[params.profileStatus]
+    : undefined;
+  const ownershipMessage = params?.ownershipStatus
+    ? ownershipMessages[params.ownershipStatus]
     : undefined;
   const membership = await requireMembership();
   const [activeCount, messInvite, members] = await Promise.all([
@@ -77,6 +96,7 @@ export default async function SettingsPage({
   const isOwner = membership.role === "OWNER";
   const canEditBalances =
     membership.role === "OWNER" || membership.role === "MANAGER";
+  const transferTargets = members.filter((member) => member.id !== membership.id);
   const headerList = await headers();
   const baseUrl = getBaseUrl(
     headerList.get("host"),
@@ -99,6 +119,12 @@ export default async function SettingsPage({
       {profileMessage ? (
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">
           {profileMessage.text}
+        </div>
+      ) : null}
+
+      {ownershipMessage ? (
+        <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-bold ${ownershipMessage.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+          {ownershipMessage.text}
         </div>
       ) : null}
 
@@ -151,6 +177,37 @@ export default async function SettingsPage({
             {activeCount} active members
           </p>
         </SectionCard>
+
+        {isOwner ? (
+          <SectionCard>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+              Ownership
+            </p>
+            <h3 className="mt-3 text-xl font-black">Transfer ownership</h3>
+            <p className="mt-2 text-sm font-semibold text-slate-500">
+              Choose another active member as the new owner. You will become manager after transfer.
+            </p>
+            {transferTargets.length ? (
+              <form action={transferOwnership} className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+                <select name="target_member_id" required className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none transition focus:border-teal-500 focus:bg-white">
+                  <option value="">Select new owner</option>
+                  {transferTargets.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.profile.name} • {member.role}
+                    </option>
+                  ))}
+                </select>
+                <SubmitButton pendingText="Transferring..." className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white hover:bg-teal-700">
+                  Transfer
+                </SubmitButton>
+              </form>
+            ) : (
+              <p className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-3 text-sm font-bold text-slate-500">
+                Add another member before transferring ownership.
+              </p>
+            )}
+          </SectionCard>
+        ) : null}
 
         {canEditBalances ? (
           <SectionCard className="lg:col-span-2">

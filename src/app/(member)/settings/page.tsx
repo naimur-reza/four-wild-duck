@@ -1,12 +1,19 @@
 import { headers } from "next/headers";
+import { ensureInviteLink, leaveMess, regenerateInviteLink, renameMess } from "@/app/(member)/actions";
 import { PageHeading } from "@/components/ui/page-heading";
 import { SectionCard } from "@/components/ui/section-card";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { ensureInviteLink, regenerateInviteLink, renameMess } from "@/app/(member)/actions";
 import { requireMembership } from "@/lib/data/ledger";
 import { prisma } from "@/lib/db/prisma";
 
 export const dynamic = "force-dynamic";
+
+const leaveMessages: Record<string, { tone: "warning" | "error"; text: string }> = {
+  "owner-needs-transfer": {
+    tone: "warning",
+    text: "You are the only owner. Make another active member owner/manager first, or leave only when you are the only member."
+  }
+};
 
 function getBaseUrl(host: string | null, protocol: string | null) {
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
@@ -14,7 +21,9 @@ function getBaseUrl(host: string | null, protocol: string | null) {
   return `${protocol || "https"}://${host}`;
 }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams?: Promise<{ leaveStatus?: string }> }) {
+  const params = await searchParams;
+  const message = params?.leaveStatus ? leaveMessages[params.leaveStatus] : undefined;
   const membership = await requireMembership();
   const [activeCount, messInvite] = await Promise.all([
     prisma.messMember.count({
@@ -33,6 +42,13 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHeading eyebrow="Setup" title="Settings" />
+
+      {message ? (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">
+          {message.text}
+        </div>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard>
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Mess name</p>
@@ -71,6 +87,17 @@ export default async function SettingsPage() {
               </form>
             </div>
           ) : null}
+        </SectionCard>
+
+        <SectionCard className="border-rose-100 bg-rose-50/60 lg:col-span-2">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-rose-500">Danger zone</p>
+          <h3 className="mt-3 text-xl font-black text-slate-950">Leave this mess</h3>
+          <p className="mt-2 text-sm font-semibold text-slate-600">
+            Leaving will remove you from the active mess member list, but your old expenses, payments, and closed reports will stay for accounting history.
+          </p>
+          <form action={leaveMess} className="mt-4">
+            <SubmitButton pendingText="Leaving..." className="rounded-2xl bg-rose-600 px-4 py-3 text-sm font-black text-white hover:bg-slate-950">Leave mess</SubmitButton>
+          </form>
         </SectionCard>
       </div>
     </>

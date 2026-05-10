@@ -18,10 +18,13 @@ export function LoginCard() {
     setError(null);
     setIsSigningIn(true);
 
+    const callbackPath = `/auth/callback?next=${encodeURIComponent(next)}`;
+    const callbackURL = `${window.location.origin}${callbackPath}`;
+
     const { data, error } = await authClient.signIn.social({
       provider: "google",
-      callbackURL: next,
-      errorCallbackURL: "/login"
+      callbackURL,
+      errorCallbackURL: `${window.location.origin}/login`
     });
 
     if (error) {
@@ -35,7 +38,7 @@ export function LoginCard() {
       return;
     }
 
-    window.location.href = next;
+    window.location.href = callbackPath;
   }
 
   return (

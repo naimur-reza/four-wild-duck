@@ -3,13 +3,14 @@ import { ArrowUpRight } from "lucide-react";
 import { MetricCard } from "@/components/ui/metric-card";
 import { PageHeading } from "@/components/ui/page-heading";
 import { SectionCard } from "@/components/ui/section-card";
-import { getDashboardData } from "@/lib/data/ledger";
+import { canManageMoney, getDashboardData } from "@/lib/data/ledger";
 import { formatTaka } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const { ledger } = await getDashboardData();
+  const { ledger, membership } = await getDashboardData();
+  const canAddPayment = canManageMoney(membership.role);
 
   return (
     <>
@@ -50,17 +51,27 @@ export default async function DashboardPage() {
           <Link href="/reports" className="text-xs font-black text-teal-700 transition hover:text-slate-950 sm:text-sm">Report</Link>
         </div>
         <div className="space-y-2 sm:space-y-3">
-          {ledger.summaries.map((row) => (
-            <div key={row.member.id} className="flex items-center justify-between gap-3 rounded-[1rem] border border-slate-100 bg-slate-50/80 p-3 shadow-sm sm:rounded-[1.35rem] sm:p-4">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black sm:text-base">{row.member.profile.name}</p>
-                <p className="text-[11px] font-medium text-slate-500 sm:text-xs">Paid {formatTaka(row.totalContribution)}</p>
+          {ledger.summaries.map((row) => {
+            const balanceAmount = Math.abs(row.closingBalance);
+            const paymentHref = `/payments?member=${row.member.id}${row.closingBalance > 0 ? `&amount=${balanceAmount.toFixed(2)}` : ""}`;
+
+            return (
+              <div key={row.member.id} className="flex items-center justify-between gap-3 rounded-[1rem] border border-slate-100 bg-slate-50/80 p-3 shadow-sm sm:rounded-[1.35rem] sm:p-4">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black sm:text-base">{row.member.profile.name}</p>
+                  <p className="text-[11px] font-medium text-slate-500 sm:text-xs">Paid {formatTaka(row.totalContribution)}</p>
+                  {canAddPayment ? (
+                    <Link href={paymentHref} className="mt-2 inline-flex rounded-full bg-slate-950 px-3 py-1.5 text-[10px] font-black text-white transition hover:bg-teal-700 sm:text-xs">
+                      Add payment
+                    </Link>
+                  ) : null}
+                </div>
+                <div className={`shrink-0 rounded-xl px-2.5 py-1.5 text-right text-xs font-black sm:rounded-2xl sm:px-3 sm:py-2 sm:text-sm ${row.closingBalance > 0 ? "bg-rose-50 text-rose-700 ring-1 ring-rose-100" : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"}`}>
+                  {row.closingBalance > 0 ? "Due" : "Advance"}<br />{formatTaka(balanceAmount)}
+                </div>
               </div>
-              <div className={`shrink-0 rounded-xl px-2.5 py-1.5 text-right text-xs font-black sm:rounded-2xl sm:px-3 sm:py-2 sm:text-sm ${row.closingBalance > 0 ? "bg-rose-50 text-rose-700 ring-1 ring-rose-100" : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"}`}>
-                {row.closingBalance > 0 ? "Due" : "Advance"}<br />{formatTaka(Math.abs(row.closingBalance))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </SectionCard>
     </>

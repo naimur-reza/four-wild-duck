@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { NotificationToggle } from "@/components/notifications/notification-toggle";
 import { authClient } from "@/lib/auth/client";
 
 type MemberSummary = {
@@ -102,16 +103,19 @@ export function AppShell({
 
       <div className="md:pl-72">
         <header className="sticky top-0 z-40 border-b border-white/80 bg-[#f7fbfa]/[0.78] px-4 py-4 shadow-sm shadow-slate-200/40 backdrop-blur-2xl md:px-8">
-          <div className="mx-auto flex max-w-6xl items-center justify-between">
-            <Link href="/dashboard" className="md:hidden">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+            <Link href="/dashboard" className="min-w-0 md:hidden">
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-teal-700">{role}</p>
-              <h1 className="text-lg font-black">{messName}</h1>
+              <h1 className="truncate text-lg font-black">{messName}</h1>
             </Link>
-            <div className="hidden md:block">
+            <div className="hidden min-w-0 md:block">
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-teal-700">{role}</p>
-              <h1 className="text-xl font-black">{messName}</h1>
+              <h1 className="truncate text-xl font-black">{messName}</h1>
             </div>
-            <div className="rounded-full border border-white/80 bg-white/90 px-4 py-2 text-xs font-black text-slate-700 shadow-sm">{currentLabel}</div>
+            <div className="flex shrink-0 items-center gap-2">
+              <NotificationToggle />
+              <div className="rounded-full border border-white/80 bg-white/90 px-4 py-2 text-xs font-black text-slate-700 shadow-sm">{currentLabel}</div>
+            </div>
           </div>
         </header>
 

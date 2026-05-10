@@ -19,6 +19,16 @@ function getCookingStatus(value: string): CookingStatus {
   return statuses.includes(value as CookingStatus) ? (value as CookingStatus) : "SCHEDULED";
 }
 
+function dayStart(date = new Date()) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return dayStart(next);
+}
+
 function revalidateCooking() {
   revalidatePath("/cooking");
   revalidatePath("/dashboard");
@@ -75,6 +85,88 @@ export async function syncCookingRoster() {
 
   revalidateCooking();
   redirect("/cooking?cookingStatus=roster-synced");
+}
+
+export async function generateCookingSchedule(formData: FormData) {
+  const membership = await requireMembership();
+  if (!canManageCooking(membership.role)) redirect("/cooking?cookingStatus=not-allowed");
+
+  const daysCount = Math.min(Math.max(Number(text(formData, "days_count") || 14), 1), 45);
+  const startDate = dayStart();
+  const endDate = addDays(startDate, daysCount - 1);
+
+  const roster = await prisma.cookingRoster.findMany({
+    where: { messId: membership.messId, isActive: true, member: { status: "ACTIVE" } },
+    include: { member: { include: { profile: true } } },
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }]
+  });
+
+  if (!roster.length) redirect("/cooking?cookingStatus=empty-roster");
+
+  const existingDays = await prisma.cookingDay.findMany({
+    where: { messId: membership.messId, date: { gte: startDate, lte: endDate } },
+    select: { date: true }
+  });
+  const existingDateKeys = new Set(existingDays.map((day) => day.date.toISOString().slice(0, 10)));
+
+  const lastDay = await prisma.cookingDay.findFirst({
+    where: { messId: membership.messId, assignedToId: { not: null }, date: { lt: startDate } },
+    orderBy: { date: "desc" },
+    select: { assignedToId: true }
+  });
+
+  let pointer = lastDay?.assignedToId
+    ? Math.max(roster.findIndex((item) => item.memberId === lastDay.assignedToId), -1) + 1
+    : 0;
+
+  const unavailable = await prisma.cookingUnavailable.findMany({
+    where: { messId: membership.messId, date: { gte: startDate, lte: endDate } },
+    select: { memberId: true, date: true }
+  });
+
+  const unavailableByDate = new Map<string, Set<string>>();
+  for (const item of unavailable) {
+    const key = item.date.toISOString().slice(0, 10);
+    const set = unavailableByDate.get(key) || new Set<string>();
+    set.add(item.memberId);
+    unavailableByDate.set(key, set);
+  }
+
+  const createData = [];
+
+  for (let index = 0; index < daysCount; index++) {
+    const date = addDays(startDate, index);
+    const dateKey = date.toISOString().slice(0, 10);
+    if (existingDateKeys.has(dateKey)) continue;
+
+    const unavailableIds = unavailableByDate.get(dateKey) || new Set<string>();
+    let assignedToId: string | null = null;
+
+    for (let attempt = 0; attempt < roster.length; attempt++) {
+      const candidateIndex = (pointer + attempt) % roster.length;
+      const candidate = roster[candidateIndex];
+      if (!unavailableIds.has(candidate.memberId)) {
+        assignedToId = candidate.memberId;
+        pointer = candidateIndex + 1;
+        break;
+      }
+    }
+
+    createData.push({
+      messId: membership.messId,
+      date,
+      assignedToId,
+      status: "SCHEDULED" as CookingStatus,
+      comment: assignedToId ? null : "No available cook for this day."
+    });
+  }
+
+  if (createData.length) {
+    await prisma.cookingDay.createMany({ data: createData, skipDuplicates: true });
+  }
+
+  revalidateCooking();
+  redirect("/cooking?cookingStatus=schedule-generated");
 }
 
 export async function updateRosterPosition(formData: FormData) {

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ExpenseCategory, MemberStatus, MessRole } from "@/generated/prisma/client";
 import {
@@ -52,6 +52,11 @@ function revalidatePaymentViews() {
   revalidatePath("/payments");
   revalidatePath("/dashboard");
   revalidatePath("/reports");
+}
+
+function refreshPaymentViews() {
+  revalidatePaymentViews();
+  refresh();
 }
 
 export async function addMember(formData: FormData) {
@@ -271,7 +276,7 @@ export async function addPayment(formData: FormData) {
     }
   });
 
-  revalidatePaymentViews();
+  refreshPaymentViews();
 }
 
 export async function updatePayment(formData: FormData) {
@@ -299,7 +304,7 @@ export async function updatePayment(formData: FormData) {
     }
   });
 
-  revalidatePaymentViews();
+  refreshPaymentViews();
 }
 
 export async function deletePayment(formData: FormData) {
@@ -314,7 +319,7 @@ export async function deletePayment(formData: FormData) {
 
   await prisma.cashPayment.delete({ where: { id: paymentId } });
 
-  revalidatePaymentViews();
+  refreshPaymentViews();
 }
 
 export async function closeMonth() {

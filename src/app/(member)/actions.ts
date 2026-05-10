@@ -42,6 +42,35 @@ function looksLikeEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function makeInviteCode() {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+}
+
+async function getOrCreateInviteCode(messId: string) {
+  const mess = await prisma.mess.findUnique({
+    where: { id: messId },
+    select: { inviteCode: true }
+  });
+
+  if (mess?.inviteCode) return mess.inviteCode;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const inviteCode = makeInviteCode();
+
+    try {
+      await prisma.mess.update({
+        where: { id: messId },
+        data: { inviteCode }
+      });
+      return inviteCode;
+    } catch {
+      // Retry if a random code somehow collides.
+    }
+  }
+
+  throw new Error("Could not generate invite link. Please try again.");
+}
+
 function revalidateMoneyViews() {
   revalidatePath("/expenses");
   revalidatePath("/payments");
@@ -363,6 +392,85 @@ export async function closeMonth() {
   });
 
   refreshMoneyViews();
+}
+
+export async function reopenMonth(formData: FormData) {
+  const membership = await requireMembership();
+  assertCanCloseMonth(membership.role);
+
+  const monthId = text(formData, "month_id");
+  if (!monthId) redirect("/history?reopenStatus=missing-month");
+
+  const result = await prisma.$transaction(async (tx) => {
+    const target = await tx.month.findFirst({
+      where: { id: monthId, messId: membership.messId, status: "CLOSED" }
+    });
+
+    if (!target) return "not-found" as const;
+
+    const latestClosed = await tx.month.findFirst({
+      where: { messId: membership.messId, status: "CLOSED" },
+      orderBy: { closedAt: "desc" },
+      select: { id: true }
+    });
+
+    if (latestClosed?.id !== target.id) return "not-latest" as const;
+
+    const openMonth = await tx.month.findFirst({
+      where: { messId: membership.messId, status: "OPEN" },
+      select: { id: true }
+    });
+
+    if (openMonth) {
+      const [expenseCount, paymentCount] = await Promise.all([
+        tx.expense.count({ where: { messId: membership.messId, monthId: openMonth.id } }),
+        tx.cashPayment.count({ where: { messId: membership.messId, monthId: openMonth.id } })
+      ]);
+
+      if (expenseCount > 0 || paymentCount > 0) return "open-has-activity" as const;
+
+      await tx.monthlySummary.deleteMany({ where: { messId: membership.messId, monthId: openMonth.id } });
+      await tx.month.delete({ where: { id: openMonth.id } });
+    }
+
+    await tx.monthlySummary.deleteMany({ where: { messId: membership.messId, monthId: target.id } });
+    await tx.month.update({
+      where: { id: target.id },
+      data: {
+        status: "OPEN",
+        closedAt: null
+      }
+    });
+
+    return "reopened" as const;
+  });
+
+  revalidateMoneyViews();
+
+  if (result === "reopened") redirect("/reports?reopenStatus=reopened");
+  redirect(`/history?month=${monthId}&reopenStatus=${result}`);
+}
+
+export async function regenerateInviteLink() {
+  const membership = await requireMembership();
+  if (membership.role !== "OWNER") return;
+
+  await prisma.mess.update({
+    where: { id: membership.messId },
+    data: { inviteCode: makeInviteCode() }
+  });
+
+  revalidatePath("/settings");
+  refresh();
+}
+
+export async function ensureInviteLink() {
+  const membership = await requireMembership();
+  if (membership.role !== "OWNER") return;
+
+  await getOrCreateInviteCode(membership.messId);
+  revalidatePath("/settings");
+  refresh();
 }
 
 export async function renameMess(formData: FormData) {

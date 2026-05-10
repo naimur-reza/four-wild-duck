@@ -8,7 +8,20 @@ import { formatTaka } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function MembersPage() {
+type MembersPageProps = {
+  searchParams?: Promise<{ memberStatus?: string }>;
+};
+
+const memberMessages: Record<string, { tone: "success" | "warning" | "error"; text: string }> = {
+  "member-added": { tone: "success", text: "Member joined this mess." },
+  "profile-not-found": { tone: "warning", text: "Ask this member to sign in once first." },
+  "already-member": { tone: "warning", text: "This member is already in this mess." },
+  "missing-query": { tone: "error", text: "Add an email, username, or user id." }
+};
+
+export default async function MembersPage({ searchParams }: MembersPageProps) {
+  const params = await searchParams;
+  const message = params?.memberStatus ? memberMessages[params.memberStatus] : undefined;
   const membership = await requireMembership();
   const members = await getMessMembers(membership.messId);
   const canManage = canManageMoney(membership.role);
@@ -17,6 +30,20 @@ export default async function MembersPage() {
   return (
     <>
       <PageHeading eyebrow="People" title="Members" action={canManage ? <AddButton>Add</AddButton> : undefined} />
+
+      {message ? (
+        <div
+          className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-bold ${
+            message.tone === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : message.tone === "warning"
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : "border-rose-200 bg-rose-50 text-rose-700"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
 
       {canManage ? (
         <SectionCard className="mb-4">

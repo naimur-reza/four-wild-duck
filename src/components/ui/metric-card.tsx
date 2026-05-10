@@ -8,10 +8,10 @@ export function MetricCard({ label, value, helper, tone = "default" }: { label: 
   }[tone];
 
   return (
-    <div className={`rounded-[1.5rem] border p-5 shadow-[0_18px_42px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/[0.03] ${styles}`}>
-      <p className={`text-[11px] font-black uppercase tracking-[0.18em] ${tone === "dark" ? "text-teal-100" : "text-slate-500"}`}>{label}</p>
-      <p className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">{value}</p>
-      {helper ? <p className={`mt-2 text-xs font-semibold ${tone === "dark" ? "text-slate-300" : "text-slate-500"}`}>{helper}</p> : null}
+    <div className={`rounded-[1.15rem] border p-3 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.03] sm:rounded-[1.5rem] sm:p-5 sm:shadow-[0_18px_42px_rgba(15,23,42,0.08)] ${styles}`}>
+      <p className={`truncate text-[9px] font-black uppercase tracking-[0.14em] sm:text-[11px] sm:tracking-[0.18em] ${tone === "dark" ? "text-teal-100" : "text-slate-500"}`}>{label}</p>
+      <p className="mt-2 truncate text-lg font-black tracking-tight sm:mt-3 sm:text-3xl">{value}</p>
+      {helper ? <p className={`mt-1 truncate text-[10px] font-semibold sm:mt-2 sm:text-xs ${tone === "dark" ? "text-slate-300" : "text-slate-500"}`}>{helper}</p> : null}
     </div>
   );
 }

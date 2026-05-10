@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
-import { SignIn } from "@stackframe/stack";
-import { stackServerApp } from "@/lib/auth/stack";
+import { auth } from "@/lib/auth/server";
+import { LoginView } from "./login-view";
+
+export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
-  const user = await stackServerApp.getUser();
-  if (user) redirect("/onboarding");
+  const { data } = await auth.getSession();
+  if (data?.user) redirect("/onboarding");
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-10 text-slate-950">
@@ -15,7 +17,7 @@ export default async function LoginPage() {
           <h1 className="mt-2 text-3xl font-black">Sign in</h1>
         </div>
         <div className="mt-8">
-          <SignIn />
+          <LoginView />
         </div>
       </section>
     </main>

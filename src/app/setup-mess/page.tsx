@@ -3,6 +3,8 @@ import { createMess } from "./actions";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
 import { getActiveMembership } from "@/lib/auth/mess";
 
+export const dynamic = "force-dynamic";
+
 export default async function SetupMessPage() {
   const user = await ensureProfile();
   const membership = await getActiveMembership(user.id);

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
+import { currentMonthLabel } from "@/lib/utils";
 
 export async function createMess(formData: FormData) {
   const user = await ensureProfile();
@@ -11,28 +12,30 @@ export async function createMess(formData: FormData) {
 
   if (!name) return;
 
-  const mess = await prisma.mess.create({
-    data: {
-      name,
-      createdBy: user.id,
-      members: {
-        create: {
-          userId: user.id,
-          role: "OWNER",
-          openingBalance,
-          status: "ACTIVE"
+  await prisma.$transaction(async (tx) => {
+    const mess = await tx.mess.create({
+      data: {
+        name,
+        createdBy: user.id,
+        members: {
+          create: {
+            userId: user.id,
+            role: "OWNER",
+            openingBalance,
+            status: "ACTIVE"
+          }
         }
       }
-    }
-  });
+    });
 
-  await prisma.month.create({
-    data: {
-      messId: mess.id,
-      label: new Date().toLocaleString("en-US", { month: "long", year: "numeric" }),
-      memberCount: 1,
-      status: "OPEN"
-    }
+    await tx.month.create({
+      data: {
+        messId: mess.id,
+        label: currentMonthLabel(),
+        memberCount: 1,
+        status: "OPEN"
+      }
+    });
   });
 
   redirect("/dashboard");

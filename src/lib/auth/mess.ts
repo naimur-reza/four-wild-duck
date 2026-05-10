@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 export async function getActiveMembership(userId: string) {
   return prisma.messMember.findFirst({
     where: { userId, status: "ACTIVE" },
-    include: { mess: true },
+    include: { mess: true, profile: true },
     orderBy: { createdAt: "asc" }
   });
 }

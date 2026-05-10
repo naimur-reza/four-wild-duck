@@ -9,7 +9,9 @@
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "db:reset": "prisma db push --force-reset && npm run seed",
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@neondatabase/auth": "^0.4.0-beta",
@@ -33,6 +35,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "typescript": "^5"
   }
 }

@@ -37,7 +37,7 @@ export default async function DashboardPage() {
           </div>
         </SectionCard>
 
-        <SectionCard>
+        <SectionCard className="hidden sm:block">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-teal-700 sm:text-xs sm:tracking-[0.2em]">Formula</p>
           <h3 className="mt-2 text-xl font-black sm:mt-3 sm:text-2xl">Share - Paid = Due</h3>
           <p className="mt-2 text-xs font-medium text-slate-500 sm:mt-3 sm:text-sm">Previous balance is included automatically.</p>

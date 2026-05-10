@@ -16,13 +16,19 @@ function getBaseUrl(host: string | null, protocol: string | null) {
 
 export default async function SettingsPage() {
   const membership = await requireMembership();
-  const activeCount = await prisma.messMember.count({
-    where: { messId: membership.messId, status: "ACTIVE" }
-  });
+  const [activeCount, messInvite] = await Promise.all([
+    prisma.messMember.count({
+      where: { messId: membership.messId, status: "ACTIVE" }
+    }),
+    prisma.mess.findUnique({
+      where: { id: membership.messId },
+      select: { inviteCode: true }
+    })
+  ]);
   const isOwner = membership.role === "OWNER";
   const headerList = await headers();
   const baseUrl = getBaseUrl(headerList.get("host"), headerList.get("x-forwarded-proto"));
-  const inviteLink = membership.mess.inviteCode ? `${baseUrl}/join/${membership.mess.inviteCode}` : "";
+  const inviteLink = messInvite?.inviteCode ? `${baseUrl}/join/${messInvite.inviteCode}` : "";
 
   return (
     <>

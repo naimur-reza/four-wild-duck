@@ -1,15 +1,27 @@
 import Link from "next/link";
+import { reopenMonth } from "@/app/(member)/actions";
 import { PageHeading } from "@/components/ui/page-heading";
 import { SectionCard } from "@/components/ui/section-card";
-import { requireMembership, toNumber } from "@/lib/data/ledger";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { canManageMoney, requireMembership, toNumber } from "@/lib/data/ledger";
 import { prisma } from "@/lib/db/prisma";
 import { formatTaka } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function HistoryPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+const reopenMessages: Record<string, { tone: "success" | "warning" | "error"; text: string }> = {
+  reopened: { tone: "success", text: "Month reopened. You can now edit entries and close it again." },
+  "not-latest": { tone: "warning", text: "Only the latest closed month can be reopened." },
+  "open-has-activity": { tone: "warning", text: "Cannot reopen because the current open month already has expenses or payments." },
+  "not-found": { tone: "error", text: "Closed month was not found." },
+  "missing-month": { tone: "error", text: "Select a closed month first." }
+};
+
+export default async function HistoryPage({ searchParams }: { searchParams: Promise<{ month?: string; reopenStatus?: string }> }) {
   const membership = await requireMembership();
-  const { month: selectedMonthId } = await searchParams;
+  const { month: selectedMonthId, reopenStatus } = await searchParams;
+  const canReopen = canManageMoney(membership.role);
+  const message = reopenStatus ? reopenMessages[reopenStatus] : undefined;
   const months = await prisma.month.findMany({
     where: { messId: membership.messId, status: "CLOSED" },
     orderBy: { closedAt: "desc" },
@@ -21,12 +33,27 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
     }
   });
   const selected = months.find((month) => month.id === selectedMonthId) || months[0];
+  const latestClosedId = months[0]?.id;
 
   return (
     <>
       <div className="hidden sm:block">
         <PageHeading eyebrow="Archive" title="History" />
       </div>
+
+      {message ? (
+        <div
+          className={`mb-3 rounded-2xl border px-3 py-2 text-xs font-bold sm:mb-4 sm:px-4 sm:py-3 sm:text-sm ${
+            message.tone === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : message.tone === "warning"
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : "border-rose-200 bg-rose-50 text-rose-700"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
 
       <div className="grid gap-3 lg:grid-cols-[0.72fr_1.28fr] lg:gap-4">
         <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-1">
@@ -59,6 +86,15 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
             </div>
             {selected ? <span className="rounded-xl bg-slate-950 px-3 py-1.5 text-[10px] font-black text-white sm:text-xs">{selected.summaries.length} rows</span> : null}
           </div>
+
+          {selected && canReopen && selected.id === latestClosedId ? (
+            <form action={reopenMonth} className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 sm:p-4">
+              <input type="hidden" name="month_id" value={selected.id} />
+              <p className="text-sm font-black text-amber-800">Need to fix this month?</p>
+              <p className="mt-1 text-xs font-semibold text-amber-700">Reopen deletes the saved snapshot and makes this month editable again. Close it again after fixing entries.</p>
+              <SubmitButton pendingText="Reopening..." className="mt-3 rounded-2xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white hover:bg-slate-950">Reopen latest month</SubmitButton>
+            </form>
+          ) : null}
 
           {selected ? (
             <div className="space-y-2 sm:space-y-3">

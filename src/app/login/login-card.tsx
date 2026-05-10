@@ -8,6 +8,12 @@ function getSafeNextPath(next: string | null) {
   return next?.startsWith("/") && !next.startsWith("//") ? next : "/onboarding";
 }
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error && "message" in error) return String(error.message);
+  return "Google sign-in failed. Please try again.";
+}
+
 export function LoginCard() {
   const searchParams = useSearchParams();
   const next = getSafeNextPath(searchParams.get("next"));
@@ -18,27 +24,31 @@ export function LoginCard() {
     setError(null);
     setIsSigningIn(true);
 
-    const callbackPath = `/auth/callback?next=${encodeURIComponent(next)}`;
-    const callbackURL = `${window.location.origin}${callbackPath}`;
+    const callbackURL = `/auth/callback?next=${encodeURIComponent(next)}`;
 
-    const { data, error } = await authClient.signIn.social({
-      provider: "google",
-      callbackURL,
-      errorCallbackURL: `${window.location.origin}/login`
-    });
+    try {
+      const { data, error } = await authClient.signIn.social({
+        provider: "google",
+        callbackURL,
+        errorCallbackURL: "/login"
+      });
 
-    if (error) {
-      setError(error.message || "Google sign-in failed. Please try again.");
+      if (error) {
+        setError(error.message || "Google sign-in failed. Please try again.");
+        setIsSigningIn(false);
+        return;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      window.location.href = callbackURL;
+    } catch (error) {
+      setError(getErrorMessage(error));
       setIsSigningIn(false);
-      return;
     }
-
-    if (data?.url) {
-      window.location.href = data.url;
-      return;
-    }
-
-    window.location.href = callbackPath;
   }
 
   return (

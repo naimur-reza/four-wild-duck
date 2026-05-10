@@ -20,6 +20,20 @@ const memberMessages: Record<string, { tone: "success" | "warning" | "error"; te
   "missing-query": { tone: "error", text: "Add an email, username, or user id." }
 };
 
+function AddMemberForm({ isOwner, compact = false }: { isOwner: boolean; compact?: boolean }) {
+  return (
+    <form action={addMember} className={compact ? "mt-3 grid gap-2" : "mt-5 grid gap-3 md:grid-cols-[1.3fr_0.8fr_0.8fr_auto]"}>
+      <input name="profile" className={compact ? "h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs outline-none transition focus:border-teal-500 focus:bg-white" : "rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm outline-none transition focus:border-teal-500 focus:bg-white"} placeholder={compact ? "Email / username" : "Email, username, or user id"} required />
+      <select name="role" disabled={!isOwner} className={compact ? "h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs font-semibold outline-none transition focus:border-teal-500 focus:bg-white" : "rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none transition focus:border-teal-500 focus:bg-white"}>
+        <option value="MEMBER">Member</option>
+        <option value="MANAGER">Manager</option>
+      </select>
+      <input name="opening_balance" type="number" step="0.01" className={compact ? "h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs outline-none transition focus:border-teal-500 focus:bg-white" : "rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm outline-none transition focus:border-teal-500 focus:bg-white"} placeholder={compact ? "Opening" : "Opening balance"} />
+      <SubmitButton className={compact ? "h-10 rounded-xl bg-teal-700 px-4 text-xs font-black text-white shadow-lg shadow-teal-100 transition hover:bg-slate-950" : "rounded-2xl bg-teal-700 px-5 py-3 text-sm font-black text-white shadow-lg shadow-teal-100 transition hover:bg-slate-950"}>Save</SubmitButton>
+    </form>
+  );
+}
+
 export default async function MembersPage({ searchParams }: MembersPageProps) {
   const params = await searchParams;
   const message = params?.memberStatus ? memberMessages[params.memberStatus] : undefined;
@@ -49,24 +63,24 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
       ) : null}
 
       {canManage ? (
-        <details className="mb-3 rounded-[1.15rem] border border-white/80 bg-white/[0.9] p-3 shadow-[0_10px_28px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.03] sm:mb-4 sm:rounded-[1.5rem] sm:p-5">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-black sm:text-xl">Join member</h3>
-              <p className="mt-0.5 text-[10px] font-semibold text-slate-500 sm:mt-2 sm:text-sm">Add email after Google sign-in.</p>
-            </div>
-            <span className="rounded-xl bg-teal-700 px-3 py-2 text-[10px] font-black text-white sm:hidden">Add</span>
-          </summary>
-          <form action={addMember} className="mt-3 grid gap-2 sm:mt-5 md:grid-cols-[1.3fr_0.8fr_0.8fr_auto]">
-            <input name="profile" className="h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs outline-none transition focus:border-teal-500 focus:bg-white sm:h-auto sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm" placeholder="Email / username" required />
-            <select name="role" disabled={!isOwner} className="h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs font-semibold outline-none transition focus:border-teal-500 focus:bg-white sm:h-auto sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
-              <option value="MEMBER">Member</option>
-              <option value="MANAGER">Manager</option>
-            </select>
-            <input name="opening_balance" type="number" step="0.01" className="h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs outline-none transition focus:border-teal-500 focus:bg-white sm:h-auto sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm" placeholder="Opening" />
-            <SubmitButton className="h-10 rounded-xl bg-teal-700 px-4 text-xs font-black text-white shadow-lg shadow-teal-100 transition hover:bg-slate-950 sm:h-auto sm:rounded-2xl sm:px-5 sm:py-3 sm:text-sm">Save</SubmitButton>
-          </form>
-        </details>
+        <>
+          <details className="mb-3 rounded-[1.15rem] border border-white/80 bg-white/[0.9] p-3 shadow-[0_10px_28px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.03] sm:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-black">Join member</h3>
+                <p className="mt-0.5 text-[10px] font-semibold text-slate-500">Add email after Google sign-in.</p>
+              </div>
+              <span className="rounded-xl bg-teal-700 px-3 py-2 text-[10px] font-black text-white">Add</span>
+            </summary>
+            <AddMemberForm isOwner={isOwner} compact />
+          </details>
+
+          <SectionCard className="mb-4 hidden sm:block">
+            <h3 className="text-xl font-black">Join a member</h3>
+            <p className="mt-2 text-sm font-semibold text-slate-500">Ask them to sign in once with Google, then add their email, username, or user id here.</p>
+            <AddMemberForm isOwner={isOwner} />
+          </SectionCard>
+        </>
       ) : null}
 
       <div className="grid grid-cols-2 gap-2 sm:gap-4 xl:grid-cols-3">

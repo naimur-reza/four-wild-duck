@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { ExpenseCategory, MemberStatus, MessRole } from "@/generated/prisma/client";
 import {
   assertCanCloseMonth,
@@ -39,12 +40,12 @@ export async function addMember(formData: FormData) {
   const membership = await requireMembership();
   assertCanManageMembers(membership.role);
 
-  const query = text(formData, "profile");
+  const query = text(formData, "profile").toLowerCase();
   const requestedRole = getRole(text(formData, "role"));
   const role = membership.role === "OWNER" ? requestedRole : "MEMBER";
   const openingBalance = toDecimal(formData.get("opening_balance"));
 
-  if (!query) return;
+  if (!query) redirect("/members?memberStatus=missing-query");
 
   const profile = await prisma.profile.findFirst({
     where: {
@@ -56,12 +57,21 @@ export async function addMember(formData: FormData) {
     }
   });
 
-  if (!profile) return;
+  if (!profile) redirect("/members?memberStatus=profile-not-found");
 
-  await prisma.messMember.upsert({
-    where: { messId_userId: { messId: membership.messId, userId: profile.userId } },
-    update: { role, openingBalance, status: "ACTIVE" },
-    create: {
+  const alreadyJoined = await prisma.messMember.findUnique({
+    where: {
+      messId_userId: {
+        messId: membership.messId,
+        userId: profile.userId
+      }
+    }
+  });
+
+  if (alreadyJoined) redirect("/members?memberStatus=already-member");
+
+  await prisma.messMember.create({
+    data: {
       messId: membership.messId,
       userId: profile.userId,
       role,
@@ -72,6 +82,7 @@ export async function addMember(formData: FormData) {
 
   revalidatePath("/members");
   revalidatePath("/dashboard");
+  redirect("/members?memberStatus=member-added");
 }
 
 export async function updateMember(formData: FormData) {

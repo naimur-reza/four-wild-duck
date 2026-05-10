@@ -473,6 +473,46 @@ export async function ensureInviteLink() {
   refresh();
 }
 
+export async function leaveMess() {
+  const membership = await requireMembership();
+
+  const result = await prisma.$transaction(async (tx) => {
+    const activeMembers = await tx.messMember.findMany({
+      where: { messId: membership.messId, status: "ACTIVE" },
+      select: { id: true, role: true }
+    });
+
+    const isOnlyActiveMember = activeMembers.length === 1;
+    const otherOwners = activeMembers.filter((member) => member.role === "OWNER" && member.id !== membership.id);
+
+    if (membership.role === "OWNER" && otherOwners.length === 0 && !isOnlyActiveMember) {
+      return "owner-needs-transfer" as const;
+    }
+
+    await tx.pushSubscription.deleteMany({
+      where: {
+        messId: membership.messId,
+        userId: membership.userId
+      }
+    });
+
+    if (isOnlyActiveMember) {
+      await tx.mess.delete({ where: { id: membership.messId } });
+      return "deleted-empty-mess" as const;
+    }
+
+    await tx.messMember.update({
+      where: { id: membership.id },
+      data: { status: "INACTIVE" }
+    });
+
+    return "left" as const;
+  });
+
+  if (result === "owner-needs-transfer") redirect("/settings?leaveStatus=owner-needs-transfer");
+  redirect("/onboarding?leaveStatus=left");
+}
+
 export async function renameMess(formData: FormData) {
   const membership = await requireMembership();
   if (membership.role !== "OWNER") return;

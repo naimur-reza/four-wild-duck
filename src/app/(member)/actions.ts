@@ -48,6 +48,12 @@ function revalidateExpenseViews() {
   revalidatePath("/reports");
 }
 
+function revalidatePaymentViews() {
+  revalidatePath("/payments");
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
+}
+
 export async function addMember(formData: FormData) {
   const membership = await requireMembership();
   assertCanManageMembers(membership.role);
@@ -265,9 +271,50 @@ export async function addPayment(formData: FormData) {
     }
   });
 
-  revalidatePath("/payments");
-  revalidatePath("/dashboard");
-  revalidatePath("/reports");
+  revalidatePaymentViews();
+}
+
+export async function updatePayment(formData: FormData) {
+  const membership = await requireMembership();
+  if (!canManageMoney(membership.role)) return;
+
+  const paymentId = text(formData, "payment_id");
+  const memberId = text(formData, "member_id");
+  if (!paymentId || !memberId) return;
+
+  const [payment, member] = await Promise.all([
+    prisma.cashPayment.findFirst({ where: { id: paymentId, messId: membership.messId } }),
+    prisma.messMember.findFirst({ where: { id: memberId, messId: membership.messId, status: "ACTIVE" } })
+  ]);
+
+  if (!payment || !member) return;
+
+  await prisma.cashPayment.update({
+    where: { id: paymentId },
+    data: {
+      memberId,
+      amount: toDecimal(formData.get("amount")),
+      date: parseDate(formData.get("date")),
+      note: text(formData, "note") || null
+    }
+  });
+
+  revalidatePaymentViews();
+}
+
+export async function deletePayment(formData: FormData) {
+  const membership = await requireMembership();
+  if (!canManageMoney(membership.role)) return;
+
+  const paymentId = text(formData, "payment_id");
+  if (!paymentId) return;
+
+  const payment = await prisma.cashPayment.findFirst({ where: { id: paymentId, messId: membership.messId } });
+  if (!payment) return;
+
+  await prisma.cashPayment.delete({ where: { id: paymentId } });
+
+  revalidatePaymentViews();
 }
 
 export async function closeMonth() {

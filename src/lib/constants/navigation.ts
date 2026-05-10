@@ -1,7 +1,7 @@
-import { BarChart3, Clock3, CreditCard, Home, ReceiptText, Settings, UsersRound } from "lucide-react";
+import { BarChart3, Clock3, CreditCard, Grid2X2, ReceiptText, Settings, UsersRound } from "lucide-react";
 
 export const dashboardNavItems = [
-  { label: "Home", href: "/dashboard", icon: Home },
+  { label: "Home", href: "/dashboard", icon: Grid2X2 },
   { label: "Members", href: "/members", icon: UsersRound },
   { label: "Expenses", href: "/expenses", icon: ReceiptText },
   { label: "Payments", href: "/payments", icon: CreditCard },

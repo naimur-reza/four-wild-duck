@@ -1,14 +1,24 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHeading } from "@/components/ui/page-heading";
+import { SectionCard } from "@/components/ui/section-card";
+
+const months = ["April 2026", "March 2026", "February 2026"];
 
 export default function HistoryPage() {
   return (
     <AppShell>
-      <PageHeading eyebrow="Previous months" title="History" description="This will show closed month snapshots. The main purpose: never lose old due history again." />
-      <div className="rounded-[2rem] border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
-        <p className="text-5xl">📒</p>
-        <h3 className="mt-4 text-2xl font-black">No closed month yet</h3>
-        <p className="mt-2 text-sm text-slate-500">Once the manager closes a month, the final report will appear here.</p>
+      <PageHeading eyebrow="Archive" title="History" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {months.map((month, index) => (
+          <SectionCard key={month}>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Closed</p>
+            <h3 className="mt-3 text-2xl font-black">{month}</h3>
+            <div className="mt-5 rounded-3xl bg-slate-50 p-4">
+              <p className="text-xs font-bold text-slate-400">Net due</p>
+              <p className="mt-1 text-xl font-black">৳{(index + 1) * 1200}</p>
+            </div>
+          </SectionCard>
+        ))}
       </div>
     </AppShell>
   );

@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth/server";
 import { prisma } from "@/lib/db/prisma";
 
 type NeonSessionUser = {
-  id: string;
+  id?: string | null;
   email?: string | null;
   name?: string | null;
   image?: string | null;
@@ -50,8 +50,8 @@ export async function getCurrentUser() {
   const { data } = await auth.getSession();
   const user = data?.user as NeonSessionUser | undefined;
 
-  if (!user) redirect("/login");
-  return user;
+  if (!user?.id) redirect("/login");
+  return { ...user, id: user.id };
 }
 
 export async function ensureProfile() {
@@ -59,13 +59,34 @@ export async function ensureProfile() {
   const email = user.email || null;
   const name = user.name || email?.split("@")[0] || "Member";
   const avatarUrl = user.image || null;
+
+  const existingProfile = await prisma.profile.findUnique({
+    where: { userId: user.id },
+    select: { id: true }
+  });
+
+  if (existingProfile) {
+    await prisma.profile.update({
+      where: { userId: user.id },
+      data: { name, email, avatarUrl }
+    });
+    return user;
+  }
+
   const username = await getAvailableUsername(makeUsername(email, name), user.id);
 
-  await prisma.profile.upsert({
-    where: { userId: user.id },
-    update: { name, email, avatarUrl },
-    create: { userId: user.id, name, email, avatarUrl, username }
-  });
+  try {
+    await prisma.profile.create({
+      data: { userId: user.id, name, email, avatarUrl, username }
+    });
+  } catch {
+    const fallbackUsername = await getAvailableUsername(`${username}-${Date.now().toString(36)}`, user.id);
+    await prisma.profile.upsert({
+      where: { userId: user.id },
+      update: { name, email, avatarUrl },
+      create: { userId: user.id, name, email, avatarUrl, username: fallbackUsername }
+    });
+  }
 
   return user;
 }

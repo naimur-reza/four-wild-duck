@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 type PaymentFilters = {
   month?: string;
   member?: string;
+  amount?: string;
   from?: string;
   to?: string;
 };
@@ -26,6 +27,13 @@ function dateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+function getSafeAmount(value?: string) {
+  if (!value) return "";
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) return "";
+  return amount.toFixed(2);
+}
+
 export default async function PaymentsPage({ searchParams }: { searchParams: Promise<PaymentFilters> }) {
   const filters = await searchParams;
   const membership = await requireMembership();
@@ -33,6 +41,8 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   const [months, members] = await Promise.all([getMessMonths(membership.messId), getMessMembers(membership.messId)]);
   const selectedMonth = months.find((month) => month.id === filters.month) || openMonth;
   const selectedMember = members.find((member) => member.id === filters.member);
+  const prefillMemberId = selectedMember?.status === "ACTIVE" ? selectedMember.id : "";
+  const prefillAmount = getSafeAmount(filters.amount);
   const from = filters.from ? startOfDay(filters.from) : undefined;
   const to = filters.to ? endOfDay(filters.to) : undefined;
   const date: Prisma.DateTimeFilter | undefined = from || to ? { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } : undefined;
@@ -69,12 +79,18 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
           </div>
           {canAdd ? (
             <form action={addPayment} className="mt-3 grid grid-cols-2 gap-2 sm:mt-5 sm:block sm:space-y-3">
-              <select name="member_id" className="col-span-2 h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs font-semibold outline-none transition focus:border-teal-500 focus:bg-white sm:h-auto sm:w-full sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm" required>
+              {selectedMember ? (
+                <div className="col-span-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 sm:px-4 sm:py-3 sm:text-sm">
+                  Adding payment for {selectedMember.profile.name}{prefillAmount ? ` • Suggested ${formatTaka(Number(prefillAmount))}` : ""}
+                </div>
+              ) : null}
+              <select name="member_id" defaultValue={prefillMemberId} className="col-span-2 h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs font-semibold outline-none transition focus:border-teal-500 focus:bg-white sm:h-auto sm:w-full sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm" required>
+                <option value="" disabled>Select member</option>
                 {activeMembers.map((member) => <option key={member.id} value={member.id}>{member.profile.name}</option>)}
               </select>
-              <input name="amount" type="number" step="0.01" min="0" className="h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs outline-none transition focus:border-teal-500 focus:bg-white sm:h-auto sm:w-full sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm" placeholder="Amount" required />
+              <input name="amount" type="number" step="0.01" min="0" defaultValue={prefillAmount} className="h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs outline-none transition focus:border-teal-500 focus:bg-white sm:h-auto sm:w-full sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm" placeholder="Amount" required />
               <input name="date" type="date" defaultValue={formatDateInput()} className="h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs outline-none transition focus:border-teal-500 focus:bg-white sm:h-auto sm:w-full sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm" />
-              <input name="note" className="col-span-2 h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs outline-none transition focus:border-teal-500 focus:bg-white sm:h-auto sm:w-full sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm" placeholder="Note" />
+              <input name="note" className="col-span-2 h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs outline-none transition focus:border-teal-500 focus:bg-white sm:h-auto sm:w-full sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm" placeholder="Note" defaultValue={selectedMember ? "Due payment" : ""} />
               <SubmitButton className="col-span-2 h-10 rounded-xl bg-teal-700 px-4 text-xs font-black text-white shadow-lg shadow-teal-100 transition hover:bg-slate-950 sm:h-auto sm:w-full sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">Save</SubmitButton>
             </form>
           ) : (

@@ -1,10 +1,11 @@
 import { headers } from "next/headers";
-import { ensureInviteLink, leaveMess, regenerateInviteLink, renameMess, updateProfileName } from "@/app/(member)/actions";
+import { ensureInviteLink, leaveMess, regenerateInviteLink, renameMess, updateOpeningBalance, updateProfileName } from "@/app/(member)/actions";
 import { PageHeading } from "@/components/ui/page-heading";
 import { SectionCard } from "@/components/ui/section-card";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { requireMembership } from "@/lib/data/ledger";
+import { requireMembership, toNumber } from "@/lib/data/ledger";
 import { prisma } from "@/lib/db/prisma";
+import { formatTaka } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -31,16 +32,22 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
   const message = params?.leaveStatus ? leaveMessages[params.leaveStatus] : undefined;
   const profileMessage = params?.profileStatus ? profileMessages[params.profileStatus] : undefined;
   const membership = await requireMembership();
-  const [activeCount, messInvite] = await Promise.all([
+  const [activeCount, messInvite, members] = await Promise.all([
     prisma.messMember.count({
       where: { messId: membership.messId, status: "ACTIVE" }
     }),
     prisma.mess.findUnique({
       where: { id: membership.messId },
       select: { inviteCode: true }
+    }),
+    prisma.messMember.findMany({
+      where: { messId: membership.messId, status: "ACTIVE" },
+      include: { profile: true },
+      orderBy: { createdAt: "asc" }
     })
   ]);
   const isOwner = membership.role === "OWNER";
+  const canEditBalances = membership.role === "OWNER" || membership.role === "MANAGER";
   const headerList = await headers();
   const baseUrl = getBaseUrl(headerList.get("host"), headerList.get("x-forwarded-proto"));
   const inviteLink = messInvite?.inviteCode ? `${baseUrl}/join/${messInvite.inviteCode}` : "";
@@ -84,6 +91,33 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
           <p className="mt-4 text-3xl font-black">{membership.role}</p>
           <p className="mt-2 text-sm font-semibold text-slate-500">{activeCount} active members</p>
         </SectionCard>
+
+        {canEditBalances ? (
+          <SectionCard className="lg:col-span-2">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Opening balances</p>
+            <h3 className="mt-3 text-xl font-black">Set previous due or advance</h3>
+            <p className="mt-2 text-sm font-semibold text-slate-500">Use positive amount for due, negative amount for advance. Example: due 1500 = 1500, advance 500 = -500.</p>
+            <div className="mt-4 space-y-3">
+              {members.map((member) => {
+                const openingBalance = toNumber(member.openingBalance);
+                return (
+                  <form key={member.id} action={updateOpeningBalance} className="grid gap-2 rounded-2xl border border-slate-100 bg-slate-50/80 p-3 sm:grid-cols-[1fr_180px_auto] sm:items-center">
+                    <input type="hidden" name="member_id" value={member.id} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-slate-950">{member.profile.name}</p>
+                      <p className={`text-xs font-bold ${openingBalance > 0 ? "text-rose-600" : openingBalance < 0 ? "text-emerald-600" : "text-slate-400"}`}>
+                        {openingBalance > 0 ? "Due" : openingBalance < 0 ? "Advance" : "No previous balance"} {openingBalance !== 0 ? formatTaka(Math.abs(openingBalance)) : ""}
+                      </p>
+                    </div>
+                    <input name="opening_balance" type="number" step="0.01" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none transition focus:border-teal-500" defaultValue={openingBalance} />
+                    <SubmitButton pendingText="Saving..." className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white">Save</SubmitButton>
+                  </form>
+                );
+              })}
+            </div>
+          </SectionCard>
+        ) : null}
+
         <SectionCard className="lg:col-span-2">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Invite link</p>
           <h3 className="mt-3 text-xl font-black">Let members join by Google login</h3>

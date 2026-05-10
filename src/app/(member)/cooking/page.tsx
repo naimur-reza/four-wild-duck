@@ -99,108 +99,131 @@ export default async function CookingPage({ searchParams }: { searchParams?: Pro
       <PageHeading eyebrow="Roster" title="Cooking" />
 
       {message ? (
-        <div className="mb-4 rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm font-bold text-teal-700">
+        <div className="mb-3 rounded-2xl border border-teal-100 bg-teal-50 px-3 py-2 text-xs font-bold text-teal-700 sm:mb-4 sm:px-4 sm:py-3 sm:text-sm">
           {message}
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard className="border-slate-800 bg-[linear-gradient(135deg,#07111f_0%,#123434_100%)] text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-teal-200">Today</p>
-              <h2 className="mt-2 text-3xl font-black">{todayDuty?.assignedTo?.profile.name || "No cook set"}</h2>
-              <p className="mt-1 text-sm font-semibold text-slate-300">{todayDuty ? prettyDate(todayDuty.date) : "Generate schedule to see today’s duty."}</p>
+      <div className="grid gap-3 lg:grid-cols-[0.9fr_1.1fr] lg:gap-4">
+        <SectionCard className="border-slate-800 bg-[linear-gradient(135deg,#07111f_0%,#123434_100%)] p-4 text-white sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-teal-200 sm:text-xs sm:tracking-[0.22em]">Today</p>
+              <h2 className="mt-1 truncate text-2xl font-black sm:mt-2 sm:text-3xl">{todayDuty?.assignedTo?.profile.name || "No cook set"}</h2>
+              <p className="mt-1 text-xs font-semibold text-slate-300 sm:text-sm">{todayDuty ? prettyDate(todayDuty.date) : "Generate schedule to see today’s duty."}</p>
             </div>
-            <ChefHat className="h-8 w-8 text-teal-200" />
+            <ChefHat className="h-7 w-7 shrink-0 text-teal-200 sm:h-8 sm:w-8" />
           </div>
-          {todayDuty?.comment ? <p className="mt-5 rounded-2xl bg-white/10 p-3 text-sm font-semibold text-white">{todayDuty.comment}</p> : null}
+          {todayDuty?.comment ? <p className="mt-4 rounded-2xl bg-white/10 p-3 text-xs font-semibold text-white sm:mt-5 sm:text-sm">{todayDuty.comment}</p> : null}
           {canManage ? (
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <form action={syncCookingRoster}>
-                <SubmitButton pendingText="Syncing..." className="w-full rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-950">Sync roster</SubmitButton>
+            <div className="mt-4 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:mt-5">
+              <form action={syncCookingRoster} className="min-w-0">
+                <SubmitButton pendingText="Syncing..." className="w-full rounded-2xl bg-white px-3 py-3 text-[11px] font-black text-slate-950 sm:px-4 sm:text-xs">Sync roster</SubmitButton>
               </form>
-              <form action={generateCookingSchedule}>
+              <form action={generateCookingSchedule} className="min-w-0">
                 <input type="hidden" name="days_count" value="14" />
-                <SubmitButton pendingText="Generating..." className="w-full rounded-2xl bg-teal-300 px-4 py-3 text-xs font-black text-slate-950">Generate 14 days</SubmitButton>
+                <SubmitButton pendingText="Generating..." className="w-full rounded-2xl bg-teal-300 px-3 py-3 text-[11px] font-black text-slate-950 sm:px-4 sm:text-xs">Generate</SubmitButton>
               </form>
             </div>
           ) : null}
         </SectionCard>
 
-        <SectionCard>
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Monthly count</p>
-          <h3 className="mt-3 text-xl font-black">{monthKey(today)} cooking report</h3>
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <SectionCard className="p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 sm:text-xs">Monthly</p>
+              <h3 className="text-lg font-black sm:mt-1 sm:text-xl">{monthKey(today)} report</h3>
+            </div>
+            <span className="rounded-full bg-teal-50 px-3 py-1 text-[10px] font-black text-teal-700 ring-1 ring-teal-100">{monthlyCompleted.length} done</span>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:grid-cols-4">
             {members.map((member) => (
               <div key={member.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3">
-                <p className="truncate text-sm font-black">{member.profile.name}</p>
-                <p className="mt-1 text-2xl font-black text-teal-700">{countByMember.get(member.id) || 0}</p>
-                <p className="text-xs font-bold text-slate-400">cooked</p>
+                <p className="truncate text-xs font-black sm:text-sm">{member.profile.name}</p>
+                <p className="mt-1 text-xl font-black text-teal-700 sm:text-2xl">{countByMember.get(member.id) || 0}</p>
               </div>
             ))}
           </div>
         </SectionCard>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="space-y-4">
-          <SectionCard>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Order</p>
-            <h3 className="mt-3 text-xl font-black">Cooking sequence</h3>
-            <div className="mt-4 space-y-2">
+      <div className="mt-3 grid gap-3 lg:mt-4 lg:grid-cols-[0.85fr_1.15fr] lg:gap-4">
+        <div className="space-y-3 lg:space-y-4">
+          <SectionCard className="p-4 sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 sm:text-xs">Order</p>
+                <h3 className="text-lg font-black sm:mt-1 sm:text-xl">Sequence</h3>
+              </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black text-slate-600">{roster.length} active</span>
+            </div>
+            <div className="mt-3 space-y-2 sm:mt-4">
               {roster.length ? roster.map((item) => (
-                <form key={item.id} action={updateRosterPosition} className="grid grid-cols-[1fr_82px_auto] items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50/80 p-3">
+                <form key={item.id} action={updateRosterPosition} className="grid grid-cols-[1fr_72px_auto] items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50/80 p-2.5 sm:grid-cols-[1fr_82px_auto] sm:p-3">
                   <input type="hidden" name="roster_id" value={item.id} />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-black">{item.member.profile.name}</p>
-                    <p className="text-xs font-bold text-slate-400">#{item.position}</p>
+                    <p className="text-[10px] font-bold text-slate-400 sm:text-xs">#{item.position}</p>
                   </div>
-                  <input disabled={!canManage} name="position" type="number" min="1" defaultValue={item.position} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black outline-none disabled:text-slate-400" />
-                  {canManage ? <SubmitButton pendingText="..." className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white">Save</SubmitButton> : null}
+                  <input disabled={!canManage} name="position" type="number" min="1" defaultValue={item.position} className="w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs font-black outline-none disabled:text-slate-400 sm:px-3" />
+                  {canManage ? <SubmitButton pendingText="..." className="rounded-xl bg-slate-950 px-2.5 py-2 text-[10px] font-black text-white sm:px-3 sm:text-xs">Save</SubmitButton> : null}
                 </form>
               )) : (
-                <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-4 text-sm font-bold text-slate-500">No roster yet. Click Sync roster.</p>
+                <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-4 text-sm font-bold text-slate-500">No roster yet. Tap Sync roster.</p>
               )}
             </div>
           </SectionCard>
 
           {canManage ? (
-            <SectionCard>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Unavailable</p>
-              <h3 className="mt-3 text-xl font-black">Mark off day</h3>
-              <form action={addUnavailableDate} className="mt-4 grid gap-2">
-                <select name="member_id" required className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500">
-                  <option value="">Select member</option>
-                  {members.map((member) => <option key={member.id} value={member.id}>{member.profile.name}</option>)}
-                </select>
-                <input name="date" type="date" defaultValue={formatDateInput()} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500" />
-                <input name="reason" placeholder="Reason / comment" className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500" />
-                <SubmitButton pendingText="Saving..." className="rounded-2xl bg-teal-700 px-4 py-3 text-sm font-black text-white">Save unavailable</SubmitButton>
-              </form>
-
-              <div className="mt-4 space-y-2">
-                {unavailable.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black">{item.member.profile.name}</p>
-                      <p className="text-xs font-bold text-slate-400">{prettyDate(item.date)}{item.reason ? ` • ${item.reason}` : ""}</p>
-                    </div>
-                    <form action={deleteUnavailableDate}>
-                      <input type="hidden" name="unavailable_id" value={item.id} />
-                      <SubmitButton pendingText="..." className="rounded-xl bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 ring-1 ring-rose-100"><Trash2 className="h-3 w-3" /></SubmitButton>
-                    </form>
+            <SectionCard className="p-4 sm:p-6">
+              <details>
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 sm:text-xs">Off day</p>
+                    <h3 className="text-lg font-black sm:mt-1 sm:text-xl">Mark unavailable</h3>
                   </div>
-                ))}
-              </div>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black text-slate-600">Open</span>
+                </summary>
+                <form action={addUnavailableDate} className="mt-4 grid gap-2">
+                  <select name="member_id" required className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500">
+                    <option value="">Select member</option>
+                    {members.map((member) => <option key={member.id} value={member.id}>{member.profile.name}</option>)}
+                  </select>
+                  <input name="date" type="date" defaultValue={formatDateInput()} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500" />
+                  <input name="reason" placeholder="Reason / comment" className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500" />
+                  <SubmitButton pendingText="Saving..." className="rounded-2xl bg-teal-700 px-4 py-3 text-sm font-black text-white">Save off day</SubmitButton>
+                </form>
+              </details>
+
+              {unavailable.length ? (
+                <div className="mt-4 space-y-2">
+                  {unavailable.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black">{item.member.profile.name}</p>
+                        <p className="text-xs font-bold text-slate-400">{prettyDate(item.date)}{item.reason ? ` • ${item.reason}` : ""}</p>
+                      </div>
+                      <form action={deleteUnavailableDate}>
+                        <input type="hidden" name="unavailable_id" value={item.id} />
+                        <SubmitButton pendingText="..." className="rounded-xl bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 ring-1 ring-rose-100"><Trash2 className="h-3 w-3" /></SubmitButton>
+                      </form>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </SectionCard>
           ) : null}
         </div>
 
-        <SectionCard>
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Upcoming</p>
-          <h3 className="mt-3 text-xl font-black">Daily schedule</h3>
-          <div className="mt-4 space-y-3">
+        <SectionCard className="p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 sm:text-xs">Upcoming</p>
+              <h3 className="text-lg font-black sm:mt-1 sm:text-xl">Daily schedule</h3>
+            </div>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black text-slate-600">{days.length} days</span>
+          </div>
+          <div className="mt-3 space-y-2 sm:mt-4 sm:space-y-3">
             {days.length ? days.map((day) => (
               <details key={day.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3 open:bg-white">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
@@ -208,7 +231,7 @@ export default async function CookingPage({ searchParams }: { searchParams?: Pro
                     <p className="truncate text-sm font-black">{prettyDate(day.date)}</p>
                     <p className="text-xs font-bold text-slate-400">{day.assignedTo?.profile.name || "No available cook"}</p>
                   </div>
-                  <span className={`rounded-full px-3 py-1 text-[10px] font-black ${day.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" : day.status === "SWAPPED" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : day.status === "SKIPPED" ? "bg-amber-50 text-amber-700 ring-1 ring-amber-100" : "bg-slate-100 text-slate-600"}`}>{day.status}</span>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black sm:px-3 sm:text-[10px] ${day.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" : day.status === "SWAPPED" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : day.status === "SKIPPED" ? "bg-amber-50 text-amber-700 ring-1 ring-amber-100" : "bg-slate-100 text-slate-600"}`}>{day.status}</span>
                 </summary>
 
                 {canManage ? (

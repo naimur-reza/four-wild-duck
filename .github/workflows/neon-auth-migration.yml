@@ -1,0 +1,558 @@
+name: Neon Auth Migration
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  neon-auth:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Migrate to Neon Auth and Prisma
+        shell: bash
+        run: |
+          npm uninstall @supabase/ssr @supabase/supabase-js || true
+          npm install @stackframe/stack @prisma/client prisma
+
+          mkdir -p prisma src/lib/auth src/lib/db src/app/handler/[...stack] src/app/login src/app/onboarding src/app/setup-mess src/app/actions
+          rm -rf src/lib/supabase src/app/auth supabase/migrations middleware.ts
+
+          cat > .env.example <<'EOF'
+          DATABASE_URL="postgresql://USER:PASSWORD@HOST.neon.tech/DB?sslmode=require"
+          DIRECT_URL="postgresql://USER:PASSWORD@HOST.neon.tech/DB?sslmode=require"
+
+          NEXT_PUBLIC_STACK_PROJECT_ID=
+          NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY=
+          STACK_SECRET_SERVER_KEY=
+          EOF
+
+          cat > prisma/schema.prisma <<'EOF'
+          generator client {
+            provider = "prisma-client-js"
+          }
+
+          datasource db {
+            provider  = "postgresql"
+            url       = env("DATABASE_URL")
+            directUrl = env("DIRECT_URL")
+          }
+
+          enum MessRole {
+            OWNER
+            MANAGER
+            MEMBER
+          }
+
+          enum MemberStatus {
+            ACTIVE
+            INACTIVE
+          }
+
+          enum MonthStatus {
+            OPEN
+            CLOSED
+          }
+
+          enum ExpenseCategory {
+            RENT
+            BAZAR
+            ELECTRICITY
+            GAS
+            INTERNET
+            OTHER
+          }
+
+          model Profile {
+            id        String   @id @default(cuid())
+            userId    String   @unique
+            name      String
+            username  String?  @unique
+            email     String?
+            avatarUrl String?
+            createdAt DateTime @default(now())
+            updatedAt DateTime @updatedAt
+
+            memberships MessMember[]
+          }
+
+          model Mess {
+            id        String   @id @default(cuid())
+            name      String
+            createdBy String
+            createdAt DateTime @default(now())
+            updatedAt DateTime @updatedAt
+
+            members      MessMember[]
+            months       Month[]
+            expenses     Expense[]
+            cashPayments CashPayment[]
+            summaries    MonthlySummary[]
+          }
+
+          model MessMember {
+            id             String       @id @default(cuid())
+            messId         String
+            userId         String
+            role           MessRole     @default(MEMBER)
+            openingBalance Decimal      @default(0) @db.Decimal(12, 2)
+            status         MemberStatus @default(ACTIVE)
+            createdAt      DateTime     @default(now())
+            updatedAt      DateTime     @updatedAt
+
+            mess    Mess    @relation(fields: [messId], references: [id], onDelete: Cascade)
+            profile Profile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+            expenses     Expense[]
+            cashPayments CashPayment[]
+            summaries    MonthlySummary[]
+
+            @@unique([messId, userId])
+            @@index([userId])
+            @@index([messId])
+          }
+
+          model Month {
+            id          String      @id @default(cuid())
+            messId      String
+            label       String
+            memberCount Int         @default(4)
+            status      MonthStatus @default(OPEN)
+            createdAt   DateTime    @default(now())
+            closedAt    DateTime?
+
+            mess         Mess             @relation(fields: [messId], references: [id], onDelete: Cascade)
+            expenses     Expense[]
+            cashPayments CashPayment[]
+            summaries    MonthlySummary[]
+
+            @@index([messId])
+          }
+
+          model Expense {
+            id        String          @id @default(cuid())
+            messId    String
+            monthId   String?
+            memberId  String?
+            category  ExpenseCategory
+            amount    Decimal         @db.Decimal(12, 2)
+            date      DateTime
+            note      String?
+            createdAt DateTime        @default(now())
+            updatedAt DateTime        @updatedAt
+
+            mess   Mess        @relation(fields: [messId], references: [id], onDelete: Cascade)
+            month  Month?      @relation(fields: [monthId], references: [id], onDelete: Cascade)
+            member MessMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+            @@index([messId])
+            @@index([monthId])
+            @@index([memberId])
+          }
+
+          model CashPayment {
+            id        String   @id @default(cuid())
+            messId    String
+            monthId   String?
+            memberId  String
+            amount    Decimal  @db.Decimal(12, 2)
+            date      DateTime
+            note      String?
+            createdAt DateTime @default(now())
+            updatedAt DateTime @updatedAt
+
+            mess   Mess       @relation(fields: [messId], references: [id], onDelete: Cascade)
+            month  Month?     @relation(fields: [monthId], references: [id], onDelete: Cascade)
+            member MessMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+            @@index([messId])
+            @@index([monthId])
+            @@index([memberId])
+          }
+
+          model MonthlySummary {
+            id                String   @id @default(cuid())
+            messId            String
+            monthId           String
+            memberId          String
+            previousBalance   Decimal  @default(0) @db.Decimal(12, 2)
+            monthlyShare      Decimal  @default(0) @db.Decimal(12, 2)
+            expensePaid       Decimal  @default(0) @db.Decimal(12, 2)
+            cashPaid          Decimal  @default(0) @db.Decimal(12, 2)
+            totalContribution Decimal  @default(0) @db.Decimal(12, 2)
+            closingBalance    Decimal  @default(0) @db.Decimal(12, 2)
+            createdAt         DateTime @default(now())
+
+            mess   Mess       @relation(fields: [messId], references: [id], onDelete: Cascade)
+            month  Month      @relation(fields: [monthId], references: [id], onDelete: Cascade)
+            member MessMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+            @@unique([monthId, memberId])
+            @@index([messId])
+          }
+          EOF
+
+          cat > src/lib/db/prisma.ts <<'EOF'
+          import { PrismaClient } from "@prisma/client";
+
+          const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+
+          export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+
+          if (process.env.NODE_ENV !== "production") {
+            globalForPrisma.prisma = prisma;
+          }
+          EOF
+
+          cat > src/lib/auth/stack.ts <<'EOF'
+          import { StackServerApp } from "@stackframe/stack";
+
+          export const stackServerApp = new StackServerApp({
+            tokenStore: "nextjs-cookie"
+          });
+          EOF
+
+          cat > src/app/handler/[...stack]/page.tsx <<'EOF'
+          import { StackHandler } from "@stackframe/stack";
+          import { stackServerApp } from "@/lib/auth/stack";
+
+          export default function Handler(props: unknown) {
+            return <StackHandler app={stackServerApp} {...(props as object)} />;
+          }
+          EOF
+
+          cat > src/lib/auth/ensure-profile.ts <<'EOF'
+          import { redirect } from "next/navigation";
+          import { prisma } from "@/lib/db/prisma";
+          import { stackServerApp } from "@/lib/auth/stack";
+
+          function makeUsername(email?: string | null, fallback?: string | null) {
+            const base = email?.split("@")[0] || fallback || "member";
+            return base.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+          }
+
+          export async function getCurrentUser() {
+            const user = await stackServerApp.getUser();
+            if (!user) redirect("/login");
+            return user;
+          }
+
+          export async function ensureProfile() {
+            const user = await getCurrentUser();
+            const email = user.primaryEmail || null;
+            const name = user.displayName || email?.split("@")[0] || "Member";
+            const avatarUrl = user.profileImageUrl || null;
+            const username = makeUsername(email, name);
+
+            await prisma.profile.upsert({
+              where: { userId: user.id },
+              update: { name, email, avatarUrl },
+              create: { userId: user.id, name, email, avatarUrl, username }
+            });
+
+            return user;
+          }
+          EOF
+
+          cat > src/lib/auth/mess.ts <<'EOF'
+          import type { MessRole } from "@prisma/client";
+          import { prisma } from "@/lib/db/prisma";
+
+          export async function getActiveMembership(userId: string) {
+            return prisma.messMember.findFirst({
+              where: { userId, status: "ACTIVE" },
+              include: { mess: true },
+              orderBy: { createdAt: "asc" }
+            });
+          }
+
+          export function canManageMembers(role?: MessRole | null) {
+            return role === "OWNER" || role === "MANAGER";
+          }
+
+          export function canCloseMonth(role?: MessRole | null) {
+            return role === "OWNER" || role === "MANAGER";
+          }
+
+          export function canChangeRoles(role?: MessRole | null) {
+            return role === "OWNER";
+          }
+          EOF
+
+          cat > middleware.ts <<'EOF'
+          import { stackServerApp } from "@/lib/auth/stack";
+          import { NextResponse, type NextRequest } from "next/server";
+
+          const protectedRoutes = ["/dashboard", "/members", "/expenses", "/payments", "/reports", "/history", "/settings", "/setup-mess", "/onboarding"];
+          const publicRoutes = ["/login", "/handler"];
+
+          export async function middleware(request: NextRequest) {
+            const pathname = request.nextUrl.pathname;
+            const isProtected = protectedRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+            const isPublic = publicRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+
+            const user = await stackServerApp.getUser();
+
+            if (isProtected && !user) {
+              const url = request.nextUrl.clone();
+              url.pathname = "/login";
+              url.searchParams.set("next", pathname);
+              return NextResponse.redirect(url);
+            }
+
+            if (pathname === "/" && user) {
+              const url = request.nextUrl.clone();
+              url.pathname = "/onboarding";
+              return NextResponse.redirect(url);
+            }
+
+            if (!isProtected && !isPublic) {
+              return NextResponse.next();
+            }
+
+            return NextResponse.next();
+          }
+
+          export const config = {
+            matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"]
+          };
+          EOF
+
+          cat > src/app/login/page.tsx <<'EOF'
+          import { redirect } from "next/navigation";
+          import { SignIn } from "@stackframe/stack";
+          import { stackServerApp } from "@/lib/auth/stack";
+
+          export default async function LoginPage() {
+            const user = await stackServerApp.getUser();
+            if (user) redirect("/onboarding");
+
+            return (
+              <main className="flex min-h-screen items-center justify-center px-4 py-10 text-slate-950">
+                <section className="w-full max-w-md rounded-[2rem] border border-white bg-white/85 p-6 shadow-2xl shadow-slate-200/70 backdrop-blur md:p-8">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-slate-950 to-slate-800 text-2xl font-black text-teal-300">M</div>
+                  <div className="mt-6 text-center">
+                    <p className="text-xs font-black uppercase tracking-[0.24em] text-teal-600">Mess Khata</p>
+                    <h1 className="mt-2 text-3xl font-black">Sign in</h1>
+                  </div>
+                  <div className="mt-8">
+                    <SignIn />
+                  </div>
+                </section>
+              </main>
+            );
+          }
+          EOF
+
+          cat > src/app/onboarding/page.tsx <<'EOF'
+          import { redirect } from "next/navigation";
+          import { ensureProfile } from "@/lib/auth/ensure-profile";
+          import { getActiveMembership } from "@/lib/auth/mess";
+
+          export default async function OnboardingPage() {
+            const user = await ensureProfile();
+            const membership = await getActiveMembership(user.id);
+
+            if (membership) redirect("/dashboard");
+            redirect("/setup-mess");
+          }
+          EOF
+
+          cat > src/app/setup-mess/actions.ts <<'EOF'
+          "use server";
+
+          import { redirect } from "next/navigation";
+          import { prisma } from "@/lib/db/prisma";
+          import { ensureProfile } from "@/lib/auth/ensure-profile";
+
+          export async function createMess(formData: FormData) {
+            const user = await ensureProfile();
+            const name = String(formData.get("name") || "").trim();
+            const openingBalance = Number(formData.get("opening_balance") || 0);
+
+            if (!name) return;
+
+            const mess = await prisma.mess.create({
+              data: {
+                name,
+                createdBy: user.id,
+                members: {
+                  create: {
+                    userId: user.id,
+                    role: "OWNER",
+                    openingBalance,
+                    status: "ACTIVE"
+                  }
+                }
+              }
+            });
+
+            await prisma.month.create({
+              data: {
+                messId: mess.id,
+                label: new Date().toLocaleString("en-US", { month: "long", year: "numeric" }),
+                memberCount: 1,
+                status: "OPEN"
+              }
+            });
+
+            redirect("/dashboard");
+          }
+          EOF
+
+          cat > src/app/setup-mess/page.tsx <<'EOF'
+          import { redirect } from "next/navigation";
+          import { createMess } from "./actions";
+          import { ensureProfile } from "@/lib/auth/ensure-profile";
+          import { getActiveMembership } from "@/lib/auth/mess";
+
+          export default async function SetupMessPage() {
+            const user = await ensureProfile();
+            const membership = await getActiveMembership(user.id);
+            if (membership) redirect("/dashboard");
+
+            return (
+              <main className="flex min-h-screen items-center justify-center px-4 py-10 text-slate-950">
+                <section className="w-full max-w-lg rounded-[2rem] border border-white bg-white/85 p-6 shadow-2xl shadow-slate-200/70 backdrop-blur md:p-8">
+                  <p className="text-xs font-black uppercase tracking-[0.24em] text-teal-600">Setup</p>
+                  <h1 className="mt-2 text-3xl font-black">Create mess</h1>
+
+                  <form action={createMess} className="mt-8 space-y-4">
+                    <div>
+                      <label className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Mess name</label>
+                      <input name="name" defaultValue="Four Wild Duck" className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none transition focus:border-teal-400 focus:bg-white" required />
+                    </div>
+                    <div>
+                      <label className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Opening balance</label>
+                      <input name="opening_balance" type="number" defaultValue="0" className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none transition focus:border-teal-400 focus:bg-white" />
+                      <p className="mt-2 text-xs font-medium text-slate-400">Positive = due, negative = advance.</p>
+                    </div>
+                    <button className="w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-xl shadow-slate-200 transition hover:-translate-y-0.5 hover:bg-teal-600">Create</button>
+                  </form>
+                </section>
+              </main>
+            );
+          }
+          EOF
+
+          cat > src/app/actions/auth.ts <<'EOF'
+          "use server";
+
+          import { redirect } from "next/navigation";
+          import { stackServerApp } from "@/lib/auth/stack";
+
+          export async function signOut() {
+            await stackServerApp.signOut();
+            redirect("/login");
+          }
+          EOF
+
+          cat > src/components/layout/app-shell.tsx <<'EOF'
+          import Link from "next/link";
+          import { UserButton } from "@stackframe/stack";
+          import { BottomNav } from "@/components/layout/bottom-nav";
+          import { SidebarNav } from "@/components/layout/sidebar-nav";
+          import { getCurrentUser } from "@/lib/auth/ensure-profile";
+          import { getActiveMembership } from "@/lib/auth/mess";
+
+          export async function AppShell({ children }: { children: React.ReactNode }) {
+            const user = await getCurrentUser();
+            const membership = await getActiveMembership(user.id);
+            const role = membership?.role || "MEMBER";
+            const messName = membership?.mess?.name || "No mess";
+
+            return (
+              <div className="min-h-screen text-slate-950">
+                <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-white/70 bg-white/70 p-5 shadow-[20px_0_60px_rgba(15,23,42,0.04)] backdrop-blur-2xl md:block">
+                  <Link href="/dashboard" className="flex items-center gap-3 rounded-[1.75rem] bg-gradient-to-br from-slate-950 to-slate-800 p-4 text-white shadow-xl shadow-slate-200">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-300 to-lime-300 text-lg font-black text-slate-950">M</div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-200">Mess</p>
+                      <h1 className="text-lg font-black">Khata</h1>
+                    </div>
+                  </Link>
+
+                  <SidebarNav />
+
+                  <div className="absolute bottom-5 left-5 right-5 rounded-[1.5rem] border border-slate-200 bg-white p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">{role}</p>
+                    <p className="mt-1 truncate text-sm font-black text-slate-900">{messName}</p>
+                    <div className="mt-4"><UserButton /></div>
+                  </div>
+                </aside>
+
+                <div className="md:pl-72">
+                  <header className="sticky top-0 z-40 border-b border-white/70 bg-[#f6f7fb]/80 px-4 py-4 backdrop-blur-2xl md:px-8">
+                    <div className="mx-auto flex max-w-6xl items-center justify-between">
+                      <Link href="/dashboard" className="md:hidden">
+                        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-teal-600">Mess Khata</p>
+                        <h1 className="text-lg font-black">{messName}</h1>
+                      </Link>
+                      <div className="hidden md:block">
+                        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-teal-600">{role}</p>
+                        <h1 className="text-xl font-black">{messName}</h1>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-full border border-white bg-white/80 px-4 py-2 text-xs font-black text-slate-700 shadow-sm">May 2026</div>
+                        <div className="md:hidden"><UserButton /></div>
+                      </div>
+                    </div>
+                  </header>
+
+                  <main className="mx-auto max-w-6xl px-4 py-6 pb-28 md:px-8 md:pb-12">{children}</main>
+                </div>
+
+                <BottomNav />
+              </div>
+            );
+          }
+          EOF
+
+          cat > src/app/layout.tsx <<'EOF'
+          import type { Metadata } from "next";
+          import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+          import { StackProvider, StackTheme } from "@stackframe/stack";
+          import { stackServerApp } from "@/lib/auth/stack";
+          import "./globals.css";
+
+          const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+          const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+          const plusJakarta = Plus_Jakarta_Sans({ variable: "--font-plus-jakarta", subsets: ["latin"] });
+
+          export const metadata: Metadata = {
+            title: "Mess Khata",
+            description: "Shared mess expense tracker"
+          };
+
+          export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+            return (
+              <html lang="en">
+                <body className={`${geistSans.variable} ${geistMono.variable} ${plusJakarta.variable} antialiased`}>
+                  <StackProvider app={stackServerApp}>
+                    <StackTheme>{children}</StackTheme>
+                  </StackProvider>
+                </body>
+              </html>
+            );
+          }
+          EOF
+
+          rm -f .github/workflows/neon-auth-migration.yml .github/workflows/auth-rbac-v2.yml .github/workflows/auth-rbac.yml .github/workflows/member-create-ui.yml .github/workflows/polish-ui.yml .github/workflows/redesign-dashboard.yml .github/workflows/bootstrap-mess-khata.yml Test
+
+      - name: Commit and push migration
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "feat: migrate auth to neon auth and prisma" || echo "No changes to commit"
+          git pull --rebase origin main
+          git push origin main

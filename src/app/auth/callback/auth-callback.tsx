@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth/client";
 
 function getSafeNextPath(next: string | null) {
-  return next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+  return next?.startsWith("/") && !next.startsWith("//") ? next : "/onboarding";
 }
 
 export function NeonAuthCallback() {

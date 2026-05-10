@@ -36,11 +36,14 @@ export function AppShell({
     messName: initialMessName,
     role: initialRole
   });
+  const [profileUser, setProfileUser] = useState<SessionUser | null>(null);
   const [isRefreshingMember, setIsRefreshingMember] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const role = memberSummary?.role || initialRole;
   const messName = memberSummary?.messName || initialMessName;
-  const displayName = sessionUser?.name || sessionUser?.email?.split("@")[0] || "Member";
+  const activeUser = profileUser || sessionUser;
+  const displayName = activeUser?.name || activeUser?.email?.split("@")[0] || "Member";
+  const avatarImage = activeUser?.image || null;
   const avatarInitial = displayName.charAt(0).toUpperCase();
 
   useEffect(() => {
@@ -48,11 +51,17 @@ export function AppShell({
 
     fetch("/api/me")
       .then((response) => (response.ok ? response.json() : null))
-      .then((data: { membership?: MemberSummary | null } | null) => {
-        if (!ignore) setMemberSummary(data?.membership || null);
+      .then((data: { user?: SessionUser | null; membership?: MemberSummary | null } | null) => {
+        if (!ignore) {
+          setProfileUser(data?.user || null);
+          setMemberSummary(data?.membership || null);
+        }
       })
       .catch(() => {
-        if (!ignore) setMemberSummary(null);
+        if (!ignore) {
+          setProfileUser(null);
+          setMemberSummary(null);
+        }
       })
       .finally(() => {
         if (!ignore) setIsRefreshingMember(false);
@@ -83,14 +92,14 @@ export function AppShell({
 
         <div className="absolute bottom-5 left-5 right-5 rounded-[1.5rem] border border-white/10 bg-white/[0.10] p-4 text-white shadow-xl shadow-slate-950/20 backdrop-blur">
           <Link href="/settings" className="flex items-center gap-3 rounded-2xl transition hover:bg-white/10">
-            {sessionUser?.image ? (
-              <Image src={sessionUser.image} alt="" width={44} height={44} unoptimized className="h-11 w-11 rounded-2xl object-cover" />
+            {avatarImage ? (
+              <Image src={avatarImage} alt="" width={44} height={44} unoptimized className="h-11 w-11 rounded-2xl object-cover" />
             ) : (
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-300 text-sm font-black text-slate-950">{avatarInitial}</div>
             )}
             <div className="min-w-0">
               <p className="truncate text-sm font-black text-white">{displayName}</p>
-              {sessionUser?.email ? <p className="truncate text-xs font-semibold text-slate-300">{sessionUser.email}</p> : null}
+              {activeUser?.email ? <p className="truncate text-xs font-semibold text-slate-300">{activeUser.email}</p> : null}
               {isRefreshingMember ? <div className="loading-shimmer mt-2 h-1.5 w-24 rounded-full bg-white/20" /> : null}
             </div>
           </Link>
@@ -108,8 +117,8 @@ export function AppShell({
             <Link href="/settings" className="min-w-0 flex-1 md:hidden">
               <div className="flex min-w-0 items-center gap-2.5 rounded-[1.35rem] border border-white/80 bg-white/80 p-2 shadow-sm ring-1 ring-slate-900/[0.03] backdrop-blur transition active:scale-[0.99]">
                 <div className="relative shrink-0">
-                  {sessionUser?.image ? (
-                    <Image src={sessionUser.image} alt="" width={44} height={44} unoptimized className="h-11 w-11 rounded-2xl object-cover ring-2 ring-white" />
+                  {avatarImage ? (
+                    <Image src={avatarImage} alt="" width={44} height={44} unoptimized className="h-11 w-11 rounded-2xl object-cover ring-2 ring-white" />
                   ) : (
                     <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#07111f_0%,#0f766e_100%)] text-sm font-black text-white ring-2 ring-white">{avatarInitial}</div>
                   )}

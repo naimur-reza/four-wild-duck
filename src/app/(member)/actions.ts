@@ -36,6 +36,10 @@ function getCategory(value: string): ExpenseCategory {
   return categories.includes(value as ExpenseCategory) ? (value as ExpenseCategory) : "OTHER";
 }
 
+function looksLikeEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 export async function addMember(formData: FormData) {
   const membership = await requireMembership();
   assertCanManageMembers(membership.role);
@@ -57,7 +61,34 @@ export async function addMember(formData: FormData) {
     }
   });
 
-  if (!profile) redirect("/members?memberStatus=profile-not-found");
+  if (!profile) {
+    if (!looksLikeEmail(query)) redirect("/members?memberStatus=profile-not-found");
+
+    await prisma.memberInvite.upsert({
+      where: {
+        messId_email: {
+          messId: membership.messId,
+          email: query
+        }
+      },
+      update: {
+        role,
+        openingBalance,
+        invitedBy: membership.userId,
+        acceptedAt: null
+      },
+      create: {
+        messId: membership.messId,
+        email: query,
+        role,
+        openingBalance,
+        invitedBy: membership.userId
+      }
+    });
+
+    revalidatePath("/members");
+    redirect("/members?memberStatus=invite-created");
+  }
 
   const alreadyJoined = await prisma.messMember.findUnique({
     where: {
@@ -78,6 +109,15 @@ export async function addMember(formData: FormData) {
       openingBalance,
       status: "ACTIVE"
     }
+  });
+
+  await prisma.memberInvite.updateMany({
+    where: {
+      messId: membership.messId,
+      email: profile.email?.toLowerCase() || query,
+      acceptedAt: null
+    },
+    data: { acceptedAt: new Date() }
   });
 
   revalidatePath("/members");

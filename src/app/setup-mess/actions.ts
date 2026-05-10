@@ -1,8 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db/prisma";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
+import { prisma } from "@/lib/db/prisma";
 import { currentMonthLabel } from "@/lib/utils";
 
 export async function createMess(formData: FormData) {
@@ -25,7 +25,8 @@ export async function createMess(formData: FormData) {
             status: "ACTIVE"
           }
         }
-      }
+      },
+      select: { id: true }
     });
 
     await tx.month.create({

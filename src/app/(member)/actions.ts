@@ -40,6 +40,12 @@ function looksLikeEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function revalidateExpenseViews() {
+  revalidatePath("/expenses");
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
+}
+
 export async function addMember(formData: FormData) {
   const membership = await requireMembership();
   assertCanManageMembers(membership.role);
@@ -146,10 +152,7 @@ export async function updateMember(formData: FormData) {
     data.role = nextRole === "OWNER" ? "MANAGER" : nextRole;
   }
 
-  await prisma.messMember.update({
-    where: { id: memberId },
-    data
-  });
+  await prisma.messMember.update({ where: { id: memberId }, data });
 
   revalidatePath("/members");
   revalidatePath("/dashboard");
@@ -162,10 +165,7 @@ export async function addExpense(formData: FormData) {
 
   if (!canAddExpenseForMember(membership.role, membership.id, memberId)) return;
 
-  const member = await prisma.messMember.findFirst({
-    where: { id: memberId, messId: membership.messId, status: "ACTIVE" }
-  });
-
+  const member = await prisma.messMember.findFirst({ where: { id: memberId, messId: membership.messId, status: "ACTIVE" } });
   if (!member) return;
 
   await prisma.expense.create({
@@ -180,9 +180,49 @@ export async function addExpense(formData: FormData) {
     }
   });
 
-  revalidatePath("/expenses");
-  revalidatePath("/dashboard");
-  revalidatePath("/reports");
+  revalidateExpenseViews();
+}
+
+export async function updateExpense(formData: FormData) {
+  const membership = await requireMembership();
+  const expenseId = text(formData, "expense_id");
+  const memberId = text(formData, "member_id") || membership.id;
+  if (!expenseId) return;
+
+  const expense = await prisma.expense.findFirst({ where: { id: expenseId, messId: membership.messId } });
+  if (!expense) return;
+  if (!canAddExpenseForMember(membership.role, membership.id, expense.memberId || "")) return;
+  if (!canAddExpenseForMember(membership.role, membership.id, memberId)) return;
+
+  const member = await prisma.messMember.findFirst({ where: { id: memberId, messId: membership.messId, status: "ACTIVE" } });
+  if (!member) return;
+
+  await prisma.expense.update({
+    where: { id: expenseId },
+    data: {
+      memberId,
+      category: getCategory(text(formData, "category")),
+      amount: toDecimal(formData.get("amount")),
+      date: parseDate(formData.get("date")),
+      note: text(formData, "note") || null
+    }
+  });
+
+  revalidateExpenseViews();
+}
+
+export async function deleteExpense(formData: FormData) {
+  const membership = await requireMembership();
+  const expenseId = text(formData, "expense_id");
+  if (!expenseId) return;
+
+  const expense = await prisma.expense.findFirst({ where: { id: expenseId, messId: membership.messId } });
+  if (!expense) return;
+  if (!canAddExpenseForMember(membership.role, membership.id, expense.memberId || "")) return;
+
+  await prisma.expense.delete({ where: { id: expenseId } });
+
+  revalidateExpenseViews();
 }
 
 export async function addPayment(formData: FormData) {
@@ -191,9 +231,7 @@ export async function addPayment(formData: FormData) {
 
   const month = await getCurrentOpenMonth(membership.messId);
   const memberId = text(formData, "member_id");
-  const member = await prisma.messMember.findFirst({
-    where: { id: memberId, messId: membership.messId, status: "ACTIVE" }
-  });
+  const member = await prisma.messMember.findFirst({ where: { id: memberId, messId: membership.messId, status: "ACTIVE" } });
 
   if (!member) return;
 
@@ -232,10 +270,7 @@ export async function renameMess(formData: FormData) {
   const name = text(formData, "name");
   if (!name) return;
 
-  await prisma.mess.update({
-    where: { id: membership.messId },
-    data: { name }
-  });
+  await prisma.mess.update({ where: { id: membership.messId }, data: { name } });
 
   revalidatePath("/settings");
   revalidatePath("/dashboard");

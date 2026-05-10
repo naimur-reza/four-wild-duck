@@ -7,24 +7,42 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  background: #f3f7f6;
+}
 
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   background:
     radial-gradient(circle at 10% -10%, rgba(13, 148, 136, 0.18), transparent 30rem),
     radial-gradient(circle at 95% 0%, rgba(14, 165, 233, 0.14), transparent 30rem),
     linear-gradient(180deg, #f8fbfa 0%, #eef5f3 44%, #f6f8fb 100%);
   color: var(--foreground);
   font-family: var(--font-plus-jakarta), var(--font-geist-sans), Arial, sans-serif;
+  overflow-x: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 button, input, select, textarea { font: inherit; }
 
+button, a, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, select, textarea {
+  font-size: 16px;
+}
+
 ::selection {
   background: #0f766e;
   color: white;
+}
+
+.app-safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
 .loading-shimmer {

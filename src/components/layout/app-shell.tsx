@@ -82,7 +82,7 @@ export function AppShell({
         <SidebarNav />
 
         <div className="absolute bottom-5 left-5 right-5 rounded-[1.5rem] border border-white/10 bg-white/[0.10] p-4 text-white shadow-xl shadow-slate-950/20 backdrop-blur">
-          <div className="flex items-center gap-3">
+          <Link href="/settings" className="flex items-center gap-3 rounded-2xl transition hover:bg-white/10">
             {sessionUser?.image ? (
               <Image src={sessionUser.image} alt="" width={44} height={44} unoptimized className="h-11 w-11 rounded-2xl object-cover" />
             ) : (
@@ -93,7 +93,7 @@ export function AppShell({
               {sessionUser?.email ? <p className="truncate text-xs font-semibold text-slate-300">{sessionUser.email}</p> : null}
               {isRefreshingMember ? <div className="loading-shimmer mt-2 h-1.5 w-24 rounded-full bg-white/20" /> : null}
             </div>
-          </div>
+          </Link>
           <div className="mt-4 border-t border-white/10 pt-3">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-teal-200">{role}</p>
             <p className="mt-1 truncate text-sm font-black text-white">{messName}</p>
@@ -103,11 +103,32 @@ export function AppShell({
       </aside>
 
       <div className="md:pl-72">
-        <header className="sticky top-0 z-40 border-b border-white/80 bg-[#f7fbfa]/[0.78] px-4 py-4 shadow-sm shadow-slate-200/40 backdrop-blur-2xl md:px-8">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-            <Link href="/dashboard" className="min-w-0 md:hidden">
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-teal-700">{role}</p>
-              <h1 className="truncate text-lg font-black">{messName}</h1>
+        <header className="sticky top-0 z-40 border-b border-white/80 bg-[#f7fbfa]/[0.82] px-3 py-3 shadow-sm shadow-slate-200/40 backdrop-blur-2xl sm:px-4 md:px-8 md:py-4">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 md:gap-4">
+            <Link href="/settings" className="min-w-0 flex-1 md:hidden">
+              <div className="flex min-w-0 items-center gap-2.5 rounded-[1.35rem] border border-white/80 bg-white/80 p-2 shadow-sm ring-1 ring-slate-900/[0.03] backdrop-blur transition active:scale-[0.99]">
+                <div className="relative shrink-0">
+                  {sessionUser?.image ? (
+                    <Image src={sessionUser.image} alt="" width={44} height={44} unoptimized className="h-11 w-11 rounded-2xl object-cover ring-2 ring-white" />
+                  ) : (
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#07111f_0%,#0f766e_100%)] text-sm font-black text-white ring-2 ring-white">{avatarInitial}</div>
+                  )}
+                  <span className="absolute -bottom-1 -right-1 rounded-full border-2 border-white bg-teal-600 px-1.5 py-0.5 text-[8px] font-black uppercase leading-none text-white shadow-sm">
+                    {role.slice(0, 3)}
+                  </span>
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <p className="truncate text-sm font-black leading-tight text-slate-950">{displayName}</p>
+                    <span className="shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-teal-700 ring-1 ring-teal-100">
+                      {role}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 truncate text-[11px] font-bold leading-tight text-slate-500">{messName}</p>
+                  {isRefreshingMember ? <div className="loading-shimmer mt-1.5 h-1 w-24 rounded-full bg-slate-200" /> : null}
+                </div>
+              </div>
             </Link>
             <div className="hidden min-w-0 md:block">
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-teal-700">{role}</p>
@@ -115,7 +136,7 @@ export function AppShell({
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <NotificationToggle />
-              <Link href="/history" className="rounded-full border border-white/80 bg-white/90 px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-teal-50 hover:text-teal-700" title="View history">{currentLabel}</Link>
+              <Link href="/history" className="rounded-full border border-white/80 bg-white/90 px-3 py-2 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-teal-50 hover:text-teal-700 sm:px-4 sm:text-xs" title="View history">{currentLabel}</Link>
             </div>
           </div>
         </header>

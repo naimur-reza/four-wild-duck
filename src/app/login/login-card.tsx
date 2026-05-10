@@ -5,7 +5,7 @@ import { useState } from "react";
 import { authClient } from "@/lib/auth/client";
 
 function getSafeNextPath(next: string | null) {
-  return next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+  return next?.startsWith("/") && !next.startsWith("//") ? next : "/onboarding";
 }
 
 export function LoginCard() {
@@ -20,7 +20,7 @@ export function LoginCard() {
 
     const { data, error } = await authClient.signIn.social({
       provider: "google",
-      callbackURL: `/auth/callback?next=${encodeURIComponent(next)}`,
+      callbackURL: next,
       errorCallbackURL: "/login"
     });
 

@@ -196,6 +196,41 @@ export async function updateMember(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function transferOwnership(formData: FormData) {
+  const membership = await requireMembership();
+  if (membership.role !== "OWNER") redirect("/settings?ownershipStatus=owner-only");
+
+  const targetMemberId = text(formData, "target_member_id");
+  if (!targetMemberId || targetMemberId === membership.id) redirect("/settings?ownershipStatus=invalid-target");
+
+  const result = await prisma.$transaction(async (tx) => {
+    const target = await tx.messMember.findFirst({
+      where: { id: targetMemberId, messId: membership.messId, status: "ACTIVE" },
+      select: { id: true, userId: true, profile: { select: { name: true } } }
+    });
+
+    if (!target) return "invalid-target" as const;
+
+    await tx.messMember.update({
+      where: { id: target.id },
+      data: { role: "OWNER" }
+    });
+
+    await tx.messMember.update({
+      where: { id: membership.id },
+      data: { role: "MANAGER" }
+    });
+
+    return "transferred" as const;
+  });
+
+  revalidatePath("/settings");
+  revalidatePath("/members");
+  revalidatePath("/dashboard");
+
+  redirect(`/settings?ownershipStatus=${result}`);
+}
+
 export async function updateOpeningBalance(formData: FormData) {
   const membership = await requireMembership();
   if (!canManageMoney(membership.role)) redirect("/settings");

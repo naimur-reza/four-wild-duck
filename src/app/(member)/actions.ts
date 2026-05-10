@@ -196,6 +196,23 @@ export async function updateMember(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function updateProfileName(formData: FormData) {
+  const membership = await requireMembership();
+  const name = text(formData, "name");
+
+  if (name.length < 2) redirect("/settings?profileStatus=name-too-short");
+  if (name.length > 60) redirect("/settings?profileStatus=name-too-long");
+
+  await prisma.profile.update({
+    where: { userId: membership.userId },
+    data: { name }
+  });
+
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+  refresh();
+}
+
 export async function addExpense(formData: FormData) {
   const membership = await requireMembership();
   const month = await getCurrentOpenMonth(membership.messId);

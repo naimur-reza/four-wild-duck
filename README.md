@@ -5,29 +5,49 @@ A mobile-first shared mess expense tracker for family-style messes where everyon
 ## Core formula
 
 ```txt
-Closing Balance = Previous Balance + Monthly Share - Total Contribution
 Monthly Share = Total Shared Expense / Active Members
 Total Contribution = Expenses Paid By Member + Cash Payments
+Closing Balance = Previous Balance + Monthly Share - Total Contribution
 ```
 
-Positive balance means due. Negative balance means advance.
+Positive closing balance means due. Negative closing balance means advance.
 
 ## Stack
 
 - Next.js App Router
-- TypeScript
+- Neon Auth
+- Neon Postgres
+- Prisma ORM
 - Tailwind CSS
-- Supabase PostgreSQL
-- Supabase Auth-ready structure
+- Vercel
 
-## Setup
+## Environment
 
-```bash
-npm install
-cp .env.example .env.local
-npm run dev
+Add these locally and in Vercel:
+
+```txt
+DATABASE_URL=
+DIRECT_URL=
+NEON_AUTH_BASE_URL=
+NEXT_PUBLIC_NEON_AUTH_URL=
+NEON_AUTH_COOKIE_SECRET=
 ```
 
-## Database
+Never expose server secrets without the `NEXT_PUBLIC_` prefix.
 
-Run the SQL inside `supabase/migrations/001_initial_schema.sql` in your Supabase SQL editor.
+## Local setup
+
+```bash
+pnpm install
+pnpm db:generate
+pnpm db:push
+pnpm dev
+```
+
+## Build
+
+```bash
+pnpm build
+```
+
+The production build runs `prisma generate && next build`.

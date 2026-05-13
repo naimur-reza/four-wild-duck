@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { CookingStatus } from "@/generated/prisma/client";
 import { canManageMoney, parseDate, requireMembership } from "@/lib/data/ledger";
 import { prisma } from "@/lib/db/prisma";
+import { notifyMessMembers } from "@/lib/notifications/web-push";
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
@@ -22,10 +23,14 @@ function revalidateCooking() {
   revalidatePath("/history");
 }
 
+function prettyDate(date: Date) {
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 async function assertActiveMember(messId: string, memberId: string) {
   return prisma.messMember.findFirst({
     where: { id: memberId, messId, status: "ACTIVE" },
-    select: { id: true }
+    select: { id: true, userId: true, profile: { select: { name: true } } }
   });
 }
 
@@ -58,6 +63,18 @@ export async function addCookingEntry(formData: FormData) {
     });
   } catch {
     redirect("/cooking?cookingStatus=duplicate-entry");
+  }
+
+  if (status === "COMPLETED" || status === "SWAPPED") {
+    await notifyMessMembers({
+      messId: membership.messId,
+      actorUserId: membership.userId,
+      payload: {
+        title: "Cooking entry added",
+        body: `${member.profile.name} cooked on ${prettyDate(date)}${comment ? `: ${comment}` : "."}`,
+        url: "/cooking"
+      }
+    });
   }
 
   revalidateCooking();

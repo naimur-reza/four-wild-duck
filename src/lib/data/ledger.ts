@@ -243,24 +243,24 @@ export async function closeOpenMonth(messId: string, monthId: string) {
 
   if (ledger.month.status === "CLOSED") return;
 
-  const cookingDays = await prisma.cookingDay.findMany({
+  const cookingEntries = await prisma.cookingEntry.findMany({
     where: {
       messId,
       date: { gte: ledger.month.createdAt, lte: endOfDate(new Date()) }
     },
-    select: { cookedById: true, assignedToId: true, status: true }
+    select: { memberId: true, status: true }
   });
 
   const cookedCountByMember = new Map<string, number>();
   const skippedCountByMember = new Map<string, number>();
 
-  for (const day of cookingDays) {
-    if ((day.status === "COMPLETED" || day.status === "SWAPPED") && day.cookedById) {
-      cookedCountByMember.set(day.cookedById, (cookedCountByMember.get(day.cookedById) || 0) + 1);
+  for (const entry of cookingEntries) {
+    if (entry.status === "COMPLETED" || entry.status === "SWAPPED") {
+      cookedCountByMember.set(entry.memberId, (cookedCountByMember.get(entry.memberId) || 0) + 1);
     }
 
-    if (day.status === "SKIPPED" && day.assignedToId) {
-      skippedCountByMember.set(day.assignedToId, (skippedCountByMember.get(day.assignedToId) || 0) + 1);
+    if (entry.status === "SKIPPED") {
+      skippedCountByMember.set(entry.memberId, (skippedCountByMember.get(entry.memberId) || 0) + 1);
     }
   }
 

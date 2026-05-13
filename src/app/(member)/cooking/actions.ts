@@ -10,12 +10,8 @@ function text(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
 }
 
-function canManageCooking(role: string) {
-  return canManageMoney(role);
-}
-
 function getCookingStatus(value: string): CookingStatus {
-  const statuses: CookingStatus[] = ["SCHEDULED", "COMPLETED", "SKIPPED", "SWAPPED"];
+  const statuses: CookingStatus[] = ["COMPLETED", "SKIPPED", "SWAPPED"];
   return statuses.includes(value as CookingStatus) ? (value as CookingStatus) : "COMPLETED";
 }
 
@@ -27,94 +23,114 @@ function revalidateCooking() {
 }
 
 async function assertActiveMember(messId: string, memberId: string) {
-  const member = await prisma.messMember.findFirst({
+  return prisma.messMember.findFirst({
     where: { id: memberId, messId, status: "ACTIVE" },
     select: { id: true }
   });
+}
 
-  return member;
+function canManageEntry(actorRole: string, actorMemberId: string, targetMemberId: string) {
+  return canManageMoney(actorRole) || actorMemberId === targetMemberId;
 }
 
 export async function addCookingEntry(formData: FormData) {
   const membership = await requireMembership();
-  if (!canManageCooking(membership.role)) redirect("/cooking?cookingStatus=not-allowed");
-
-  const cookedById = text(formData, "cooked_by_id");
-  const assignedToId = text(formData, "assigned_to_id") || cookedById;
+  const selectedMemberId = text(formData, "member_id");
+  const memberId = canManageMoney(membership.role) && selectedMemberId ? selectedMemberId : membership.id;
   const date = parseDate(formData.get("date"));
   const status = getCookingStatus(text(formData, "status"));
   const comment = text(formData, "comment") || null;
 
-  if (!cookedById) redirect("/cooking?cookingStatus=invalid-member");
-  const cookedBy = await assertActiveMember(membership.messId, cookedById);
-  const assignedTo = assignedToId ? await assertActiveMember(membership.messId, assignedToId) : null;
+  if (!canManageEntry(membership.role, membership.id, memberId)) redirect("/cooking?cookingStatus=not-allowed");
 
-  if (!cookedBy || (assignedToId && !assignedTo)) redirect("/cooking?cookingStatus=invalid-member");
+  const member = await assertActiveMember(membership.messId, memberId);
+  if (!member) redirect("/cooking?cookingStatus=invalid-member");
 
-  await prisma.cookingDay.upsert({
-    where: {
-      messId_date: {
+  try {
+    await prisma.cookingEntry.create({
+      data: {
         messId: membership.messId,
-        date
+        memberId,
+        date,
+        status,
+        comment
       }
-    },
-    update: {
-      assignedToId,
-      cookedById,
-      status,
-      comment
-    },
-    create: {
-      messId: membership.messId,
-      date,
-      assignedToId,
-      cookedById,
-      status,
-      comment
-    }
-  });
+    });
+  } catch {
+    redirect("/cooking?cookingStatus=duplicate-entry");
+  }
 
   revalidateCooking();
   redirect("/cooking?cookingStatus=entry-saved");
 }
 
-export async function deleteCookingEntry(formData: FormData) {
+export async function updateCookingEntry(formData: FormData) {
   const membership = await requireMembership();
-  if (!canManageCooking(membership.role)) redirect("/cooking?cookingStatus=not-allowed");
+  const entryId = text(formData, "entry_id");
+  if (!entryId) return;
 
-  const dayId = text(formData, "day_id");
-  if (!dayId) return;
+  const entry = await prisma.cookingEntry.findFirst({
+    where: { id: entryId, messId: membership.messId },
+    select: { id: true, memberId: true }
+  });
 
-  await prisma.cookingDay.deleteMany({ where: { id: dayId, messId: membership.messId } });
+  if (!entry) return;
+  if (!canManageEntry(membership.role, membership.id, entry.memberId)) redirect("/cooking?cookingStatus=not-allowed");
+
+  await prisma.cookingEntry.update({
+    where: { id: entryId },
+    data: {
+      status: getCookingStatus(text(formData, "status")),
+      comment: text(formData, "comment") || null
+    }
+  });
+
   revalidateCooking();
 }
 
-export async function updateCookingDay(formData: FormData) {
+export async function deleteCookingEntry(formData: FormData) {
   const membership = await requireMembership();
-  if (!canManageCooking(membership.role)) redirect("/cooking?cookingStatus=not-allowed");
+  const entryId = text(formData, "entry_id");
+  if (!entryId) return;
 
-  const dayId = text(formData, "day_id");
-  const assignedToId = text(formData, "assigned_to_id") || null;
-  const cookedById = text(formData, "cooked_by_id") || assignedToId;
-  const status = getCookingStatus(text(formData, "status"));
-  const comment = text(formData, "comment") || null;
+  const entry = await prisma.cookingEntry.findFirst({
+    where: { id: entryId, messId: membership.messId },
+    select: { id: true, memberId: true }
+  });
 
-  if (!dayId) return;
+  if (!entry) return;
+  if (!canManageEntry(membership.role, membership.id, entry.memberId)) redirect("/cooking?cookingStatus=not-allowed");
 
-  const day = await prisma.cookingDay.findFirst({
-    where: { id: dayId, messId: membership.messId },
+  await prisma.cookingEntry.delete({ where: { id: entryId } });
+  revalidateCooking();
+}
+
+export async function rateCookingEntry(formData: FormData) {
+  const membership = await requireMembership();
+  const entryId = text(formData, "entry_id");
+  const rating = Math.min(Math.max(Number(text(formData, "rating")), 1), 5);
+
+  if (!entryId || !Number.isFinite(rating)) return;
+
+  const entry = await prisma.cookingEntry.findFirst({
+    where: { id: entryId, messId: membership.messId },
     select: { id: true }
   });
 
-  if (!day) return;
+  if (!entry) return;
 
-  await prisma.cookingDay.update({
-    where: { id: dayId },
-    data: {
-      assignedToId,
-      cookedById: status === "COMPLETED" || status === "SWAPPED" ? cookedById : null,
-      status,
-      comment
+  await prisma.cookingRating.upsert({
+    where: {
+      entryId_memberId: {
+        entryId,
+        memberId: membership.id
+      }
+    },
+    update: { rating },
+    create: {
+      entryId,
+      memberId: membership.id,
+      rating
     }
   });
 
@@ -123,7 +139,7 @@ export async function updateCookingDay(formData: FormData) {
 
 export async function addUnavailableDate(formData: FormData) {
   const membership = await requireMembership();
-  if (!canManageCooking(membership.role)) redirect("/cooking?cookingStatus=not-allowed");
+  if (!canManageMoney(membership.role)) redirect("/cooking?cookingStatus=not-allowed");
 
   const memberId = text(formData, "member_id");
   const date = parseDate(formData.get("date"));
@@ -155,7 +171,7 @@ export async function addUnavailableDate(formData: FormData) {
 
 export async function deleteUnavailableDate(formData: FormData) {
   const membership = await requireMembership();
-  if (!canManageCooking(membership.role)) redirect("/cooking?cookingStatus=not-allowed");
+  if (!canManageMoney(membership.role)) redirect("/cooking?cookingStatus=not-allowed");
 
   const id = text(formData, "unavailable_id");
   if (!id) return;

@@ -75,6 +75,7 @@ model Mess {
   pushSubscriptions PushSubscription[]
   cookingRoster CookingRoster[]
   cookingDays CookingDay[]
+  cookingEntries CookingEntry[]
   cookingUnavailable CookingUnavailable[]
   cookingSummaries CookingMonthlySummary[]
 }
@@ -96,6 +97,8 @@ model MessMember {
   cashPayments CashPayment[]
   summaries    MonthlySummary[]
   cookingRoster CookingRoster[]
+  cookingEntries CookingEntry[]
+  cookingRatings CookingRating[]
   assignedCookingDays CookingDay[] @relation("AssignedCookingDays")
   cookedCookingDays CookingDay[] @relation("CookedCookingDays")
   cookingUnavailable CookingUnavailable[]
@@ -235,6 +238,40 @@ model CookingRoster {
 
   @@unique([messId, memberId])
   @@index([messId, position])
+}
+
+model CookingEntry {
+  id        String        @id @default(cuid())
+  messId    String
+  memberId  String
+  date      DateTime
+  status    CookingStatus @default(COMPLETED)
+  comment   String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  mess    Mess            @relation(fields: [messId], references: [id], onDelete: Cascade)
+  member  MessMember      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  ratings CookingRating[]
+
+  @@unique([messId, memberId, date])
+  @@index([messId, date])
+  @@index([memberId])
+}
+
+model CookingRating {
+  id        String   @id @default(cuid())
+  entryId   String
+  memberId  String
+  rating    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entry  CookingEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  member MessMember   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, memberId])
+  @@index([memberId])
 }
 
 model CookingDay {

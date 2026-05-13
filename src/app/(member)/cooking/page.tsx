@@ -9,15 +9,17 @@ import {
   addUnavailableDate,
   deleteCookingEntry,
   deleteUnavailableDate,
-  updateCookingDay
+  rateCookingEntry,
+  updateCookingEntry
 } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 const statusMessages: Record<string, string> = {
   "entry-saved": "Cooking entry saved.",
+  "duplicate-entry": "This member already has a cooking entry for that date.",
   "unavailable-added": "Off day saved.",
-  "not-allowed": "Only owners and managers can manage cooking entries.",
+  "not-allowed": "You can only manage your own cooking entry.",
   "invalid-member": "Selected member is not active in this mess."
 };
 
@@ -41,6 +43,11 @@ function startOfToday(date = new Date()) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+function averageRating(ratings: { rating: number }[]) {
+  if (!ratings.length) return 0;
+  return ratings.reduce((sum, item) => sum + item.rating, 0) / ratings.length;
+}
+
 export default async function CookingPage({ searchParams }: { searchParams?: Promise<{ cookingStatus?: string }> }) {
   const params = await searchParams;
   const message = params?.cookingStatus ? statusMessages[params.cookingStatus] : undefined;
@@ -51,19 +58,19 @@ export default async function CookingPage({ searchParams }: { searchParams?: Pro
   const monthStart = startOfMonth(today);
   const monthEnd = endOfMonth(today);
 
-  const [members, entries, unavailable, monthlyCompleted, todayEntry] = await Promise.all([
+  const [members, entries, unavailable, monthlyCompleted, todayEntries] = await Promise.all([
     prisma.messMember.findMany({
       where: { messId: membership.messId, status: "ACTIVE" },
       include: { profile: true },
       orderBy: { createdAt: "asc" }
     }),
-    prisma.cookingDay.findMany({
+    prisma.cookingEntry.findMany({
       where: { messId: membership.messId, date: { gte: monthStart, lte: monthEnd } },
       include: {
-        assignedTo: { include: { profile: true } },
-        cookedBy: { include: { profile: true } }
+        member: { include: { profile: true } },
+        ratings: true
       },
-      orderBy: { date: "desc" }
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }]
     }),
     prisma.cookingUnavailable.findMany({
       where: { messId: membership.messId, date: { gte: todayStart } },
@@ -71,29 +78,27 @@ export default async function CookingPage({ searchParams }: { searchParams?: Pro
       orderBy: { date: "asc" },
       take: 8
     }),
-    prisma.cookingDay.findMany({
+    prisma.cookingEntry.findMany({
       where: {
         messId: membership.messId,
         date: { gte: monthStart, lte: monthEnd },
-        status: { in: ["COMPLETED", "SWAPPED"] },
-        cookedById: { not: null }
+        status: { in: ["COMPLETED", "SWAPPED"] }
       },
-      select: { cookedById: true }
+      select: { memberId: true }
     }),
-    prisma.cookingDay.findUnique({
-      where: { messId_date: { messId: membership.messId, date: todayStart } },
-      include: {
-        assignedTo: { include: { profile: true } },
-        cookedBy: { include: { profile: true } }
-      }
+    prisma.cookingEntry.findMany({
+      where: { messId: membership.messId, date: todayStart, status: { in: ["COMPLETED", "SWAPPED"] } },
+      include: { member: { include: { profile: true } } },
+      orderBy: { createdAt: "desc" }
     })
   ]);
 
   const countByMember = new Map<string, number>();
   for (const item of monthlyCompleted) {
-    if (!item.cookedById) continue;
-    countByMember.set(item.cookedById, (countByMember.get(item.cookedById) || 0) + 1);
+    countByMember.set(item.memberId, (countByMember.get(item.memberId) || 0) + 1);
   }
+
+  const todayNames = todayEntries.map((entry) => entry.member.profile.name).join(", ");
 
   return (
     <>
@@ -110,14 +115,13 @@ export default async function CookingPage({ searchParams }: { searchParams?: Pro
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-teal-200 sm:text-xs sm:tracking-[0.22em]">Today cooked</p>
-              <h2 className="mt-1 truncate text-2xl font-black sm:mt-2 sm:text-3xl">{todayEntry?.cookedBy?.profile.name || "Not added"}</h2>
+              <h2 className="mt-1 truncate text-2xl font-black sm:mt-2 sm:text-3xl">{todayNames || "Not added"}</h2>
               <p className="mt-1 text-xs font-semibold text-slate-300 sm:text-sm">{prettyDate(todayStart)}</p>
             </div>
             <ChefHat className="h-7 w-7 shrink-0 text-teal-200 sm:h-8 sm:w-8" />
           </div>
-          {todayEntry?.comment ? <p className="mt-4 rounded-2xl bg-white/10 p-3 text-xs font-semibold text-white sm:mt-5 sm:text-sm">{todayEntry.comment}</p> : null}
           <div className="mt-4 rounded-2xl bg-white/10 p-3 text-xs font-semibold text-teal-100">
-            Add who actually cooked each day. Month close will freeze these cooking counts in history.
+            Everyone can add their own cooking. Owner/manager can add for anyone. One member can enter only once per day.
           </div>
         </SectionCard>
 
@@ -143,30 +147,29 @@ export default async function CookingPage({ searchParams }: { searchParams?: Pro
 
       <div className="mt-3 grid gap-3 lg:mt-4 lg:grid-cols-[0.85fr_1.15fr] lg:gap-4">
         <div className="space-y-3 lg:space-y-4">
-          {canManage ? (
-            <SectionCard className="p-4 sm:p-6">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-teal-700 sm:text-xs">New</p>
-              <h3 className="mt-1 text-xl font-black">Add cooking entry</h3>
-              <form action={addCookingEntry} className="mt-4 grid grid-cols-2 gap-2">
-                <select name="cooked_by_id" required className="col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500">
-                  <option value="">Who cooked?</option>
+          <SectionCard className="p-4 sm:p-6">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-teal-700 sm:text-xs">New</p>
+            <h3 className="mt-1 text-xl font-black">Add cooking</h3>
+            <form action={addCookingEntry} className="mt-4 grid grid-cols-2 gap-2">
+              {canManage ? (
+                <select name="member_id" defaultValue={membership.id} required className="col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500">
                   {members.map((member) => <option key={member.id} value={member.id}>{member.profile.name}</option>)}
                 </select>
-                <select name="assigned_to_id" className="col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500">
-                  <option value="">Assigned person, optional</option>
-                  {members.map((member) => <option key={member.id} value={member.id}>{member.profile.name}</option>)}
-                </select>
-                <input name="date" type="date" defaultValue={formatDateInput()} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500" />
-                <select name="status" defaultValue="COMPLETED" className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500">
-                  <option value="COMPLETED">Completed</option>
-                  <option value="SWAPPED">Swapped</option>
-                  <option value="SKIPPED">Skipped</option>
-                </select>
-                <input name="comment" placeholder="Comment" className="col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500" />
-                <SubmitButton pendingText="Saving..." className="col-span-2 rounded-2xl bg-teal-700 px-4 py-3 text-sm font-black text-white">Save cooking</SubmitButton>
-              </form>
-            </SectionCard>
-          ) : null}
+              ) : (
+                <div className="col-span-2 rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm font-black text-teal-700">
+                  Adding as {membership.profile.name}
+                </div>
+              )}
+              <input name="date" type="date" defaultValue={formatDateInput()} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500" />
+              <select name="status" defaultValue="COMPLETED" className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500">
+                <option value="COMPLETED">Cooked</option>
+                <option value="SWAPPED">Swapped</option>
+                <option value="SKIPPED">Skipped</option>
+              </select>
+              <input name="comment" placeholder="What did you cook? e.g. mach, murgi, vat" className="col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold outline-none focus:border-teal-500" />
+              <SubmitButton pendingText="Saving..." className="col-span-2 rounded-2xl bg-teal-700 px-4 py-3 text-sm font-black text-white">Save cooking</SubmitButton>
+            </form>
+          </SectionCard>
 
           {canManage ? (
             <SectionCard className="p-4 sm:p-6">
@@ -215,49 +218,60 @@ export default async function CookingPage({ searchParams }: { searchParams?: Pro
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 sm:text-xs">Entries</p>
               <h3 className="text-lg font-black sm:mt-1 sm:text-xl">This month</h3>
             </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black text-slate-600">{entries.length} days</span>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black text-slate-600">{entries.length} entries</span>
           </div>
           <div className="mt-3 space-y-2 sm:mt-4 sm:space-y-3">
-            {entries.length ? entries.map((day) => (
-              <details key={day.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3 open:bg-white">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-black">{prettyDate(day.date)}</p>
-                    <p className="text-xs font-bold text-slate-400">Cooked by {day.cookedBy?.profile.name || "Not set"}</p>
-                  </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black sm:px-3 sm:text-[10px] ${day.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" : day.status === "SWAPPED" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : day.status === "SKIPPED" ? "bg-amber-50 text-amber-700 ring-1 ring-amber-100" : "bg-slate-100 text-slate-600"}`}>{day.status}</span>
-                </summary>
+            {entries.length ? entries.map((entry) => {
+              const canEditEntry = canManage || entry.memberId === membership.id;
+              const avg = averageRating(entry.ratings);
+              return (
+                <details key={entry.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3 open:bg-white">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black">{entry.member.profile.name} • {prettyDate(entry.date)}</p>
+                      <p className="truncate text-xs font-bold text-slate-400">{entry.comment || "No menu added"}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-[9px] font-black text-amber-700 ring-1 ring-amber-100">
+                      {avg ? `${avg.toFixed(1)}★` : "No ★"}
+                    </span>
+                  </summary>
 
-                {canManage ? (
                   <div className="mt-3 border-t border-slate-100 pt-3">
-                    <form action={updateCookingDay} className="grid gap-2 sm:grid-cols-2">
-                      <input type="hidden" name="day_id" value={day.id} />
-                      <select name="cooked_by_id" defaultValue={day.cookedById || ""} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold outline-none focus:border-teal-500">
-                        <option value="">Not cooked yet</option>
-                        {members.map((member) => <option key={member.id} value={member.id}>{member.profile.name}</option>)}
-                      </select>
-                      <select name="assigned_to_id" defaultValue={day.assignedToId || ""} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold outline-none focus:border-teal-500">
-                        <option value="">No assigned person</option>
-                        {members.map((member) => <option key={member.id} value={member.id}>{member.profile.name}</option>)}
-                      </select>
-                      <select name="status" defaultValue={day.status} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold outline-none focus:border-teal-500">
-                        <option value="COMPLETED">Completed</option>
-                        <option value="SKIPPED">Skipped</option>
-                        <option value="SWAPPED">Swapped</option>
-                      </select>
-                      <input name="comment" defaultValue={day.comment || ""} placeholder="Comment" className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold outline-none focus:border-teal-500" />
-                      <SubmitButton pendingText="Saving..." className="rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white sm:col-span-2">Save entry</SubmitButton>
-                    </form>
-                    <form action={deleteCookingEntry} className="mt-2 flex justify-end">
-                      <input type="hidden" name="day_id" value={day.id} />
-                      <SubmitButton pendingText="..." className="rounded-xl bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 ring-1 ring-rose-100"><Trash2 className="mr-1 inline h-3 w-3" />Delete</SubmitButton>
-                    </form>
+                    <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <form key={star} action={rateCookingEntry}>
+                          <input type="hidden" name="entry_id" value={entry.id} />
+                          <input type="hidden" name="rating" value={star} />
+                          <SubmitButton pendingText="..." className="rounded-full bg-amber-50 px-2.5 py-1.5 text-xs font-black text-amber-700 ring-1 ring-amber-100 hover:bg-amber-100">
+                            {star}★
+                          </SubmitButton>
+                        </form>
+                      ))}
+                      <span className="ml-1 text-[10px] font-bold text-slate-400">{entry.ratings.length} ratings</span>
+                    </div>
+
+                    {canEditEntry ? (
+                      <>
+                        <form action={updateCookingEntry} className="grid gap-2 sm:grid-cols-2">
+                          <input type="hidden" name="entry_id" value={entry.id} />
+                          <select name="status" defaultValue={entry.status} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold outline-none focus:border-teal-500">
+                            <option value="COMPLETED">Cooked</option>
+                            <option value="SKIPPED">Skipped</option>
+                            <option value="SWAPPED">Swapped</option>
+                          </select>
+                          <input name="comment" defaultValue={entry.comment || ""} placeholder="What was cooked?" className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold outline-none focus:border-teal-500" />
+                          <SubmitButton pendingText="Saving..." className="rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white sm:col-span-2">Save entry</SubmitButton>
+                        </form>
+                        <form action={deleteCookingEntry} className="mt-2 flex justify-end">
+                          <input type="hidden" name="entry_id" value={entry.id} />
+                          <SubmitButton pendingText="..." className="rounded-xl bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 ring-1 ring-rose-100"><Trash2 className="mr-1 inline h-3 w-3" />Delete</SubmitButton>
+                        </form>
+                      </>
+                    ) : null}
                   </div>
-                ) : day.comment ? (
-                  <p className="mt-3 rounded-2xl bg-white p-3 text-sm font-semibold text-slate-600">{day.comment}</p>
-                ) : null}
-              </details>
-            )) : (
+                </details>
+              );
+            }) : (
               <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-4 text-sm font-bold text-slate-500">No cooking entries yet.</p>
             )}
           </div>

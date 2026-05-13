@@ -76,6 +76,7 @@ model Mess {
   cookingRoster CookingRoster[]
   cookingDays CookingDay[]
   cookingUnavailable CookingUnavailable[]
+  cookingSummaries CookingMonthlySummary[]
 }
 
 model MessMember {
@@ -98,6 +99,7 @@ model MessMember {
   assignedCookingDays CookingDay[] @relation("AssignedCookingDays")
   cookedCookingDays CookingDay[] @relation("CookedCookingDays")
   cookingUnavailable CookingUnavailable[]
+  cookingSummaries CookingMonthlySummary[]
 
   @@unique([messId, userId])
   @@index([userId])
@@ -152,6 +154,7 @@ model Month {
   expenses     Expense[]
   cashPayments CashPayment[]
   summaries    MonthlySummary[]
+  cookingSummaries CookingMonthlySummary[]
 
   @@index([messId])
 }
@@ -269,4 +272,21 @@ model CookingUnavailable {
 
   @@unique([messId, memberId, date])
   @@index([messId, date])
+}
+
+model CookingMonthlySummary {
+  id        String   @id @default(cuid())
+  messId    String
+  monthId   String
+  memberId  String
+  cookedCount Int    @default(0)
+  skippedCount Int   @default(0)
+  createdAt DateTime @default(now())
+
+  mess   Mess       @relation(fields: [messId], references: [id], onDelete: Cascade)
+  month  Month      @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  member MessMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([monthId, memberId])
+  @@index([messId])
 }

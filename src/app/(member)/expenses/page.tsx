@@ -238,7 +238,7 @@ export default async function ExpensesPage({
               );
 
               return (
-                <SectionCard key={expense.id} className="p-3 sm:p-4 md:p-4">
+                <SectionCard key={expense.id} className="overflow-hidden p-3 sm:p-4 md:p-4">
                   <details className="group">
                     <summary className="flex cursor-pointer list-none items-start justify-between gap-3 sm:gap-4">
                       <div className="min-w-0">

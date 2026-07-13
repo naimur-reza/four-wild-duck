@@ -59,12 +59,14 @@ model Profile {
 }
 
 model Mess {
-  id         String   @id @default(cuid())
-  name       String
-  inviteCode String?  @unique
-  createdBy  String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  name                 String
+  inviteCode           String?  @unique
+  createdBy            String
+  autoCloseEnabled     Boolean  @default(true)
+  closeGracePeriodDays Int      @default(3)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   members      MessMember[]
   invites      MemberInvite[]

@@ -5,6 +5,7 @@ import {
   regenerateInviteLink,
   renameMess,
   transferOwnership,
+  updateAutoCloseSettings,
   updateOpeningBalance,
   updateProfileName,
 } from "@/app/(member)/actions";
@@ -85,7 +86,7 @@ export default async function SettingsPage({
     }),
     prisma.mess.findUnique({
       where: { id: membership.messId },
-      select: { inviteCode: true },
+      select: { inviteCode: true, autoCloseEnabled: true, closeGracePeriodDays: true },
     }),
     prisma.messMember.findMany({
       where: { messId: membership.messId, status: "ACTIVE" },
@@ -306,6 +307,54 @@ export default async function SettingsPage({
             </div>
           ) : null}
         </SectionCard>
+
+        {isOwner ? (
+          <SectionCard className="lg:col-span-2">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+              Auto-close
+            </p>
+            <h3 className="mt-3 text-xl font-black">
+              Automatically close months
+            </h3>
+            <p className="mt-2 text-sm font-semibold text-slate-500">
+              When a month ends, the system will close it after the grace period and save the snapshot to history.
+            </p>
+            <form action={updateAutoCloseSettings} className="mt-4 space-y-4">
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-3 sm:p-4">
+                <input
+                  type="checkbox"
+                  name="auto_close_enabled"
+                  value="true"
+                  defaultChecked={messInvite?.autoCloseEnabled ?? true}
+                  className="h-5 w-5 rounded border-slate-300 text-teal-700 focus:ring-teal-500"
+                />
+                <div>
+                  <p className="text-sm font-black text-slate-950">Enable auto-close</p>
+                  <p className="text-xs font-semibold text-slate-400">Months will close automatically when overdue</p>
+                </div>
+              </label>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3 sm:p-4">
+                <label className="text-sm font-black text-slate-950">
+                  Grace period (days after month end)
+                </label>
+                <input
+                  type="number"
+                  name="grace_period"
+                  min={0}
+                  max={90}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none transition focus:border-teal-500"
+                  defaultValue={messInvite?.closeGracePeriodDays ?? 3}
+                />
+                <p className="mt-1 text-xs font-semibold text-slate-400">
+                  System waits this many days after the month ends before auto-closing
+                </p>
+              </div>
+              <SubmitButton pendingText="Saving..." className="rounded-2xl bg-teal-700 px-4 py-3 text-sm font-black text-white">
+                Save settings
+              </SubmitButton>
+            </form>
+          </SectionCard>
+        ) : null}
 
         <SectionCard className="border-rose-100 bg-rose-50/60 lg:col-span-2">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-rose-500">

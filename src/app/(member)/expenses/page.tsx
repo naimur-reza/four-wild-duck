@@ -332,7 +332,7 @@ export default async function ExpensesPage({
                           />
                           <SubmitButton
                             pendingText="..."
-                            className="h-10 rounded-xl bg-slate-950 px-4 text-xs font-black text-white sm:h-11 sm:rounded-2xl"
+                            className="col-span-2 h-10 rounded-xl bg-slate-950 px-4 text-xs font-black text-white sm:h-11 sm:rounded-2xl"
                           >
                             <Pencil className="mr-1 inline h-3 w-3" />
                             Save

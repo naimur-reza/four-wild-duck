@@ -601,3 +601,22 @@ export async function renameMess(formData: FormData) {
   revalidatePath("/settings");
   revalidatePath("/dashboard");
 }
+
+export async function updateAutoCloseSettings(formData: FormData) {
+  const membership = await requireMembership();
+  if (membership.role !== "OWNER") return;
+
+  const autoCloseEnabled = text(formData, "auto_close_enabled") === "true";
+  const gracePeriod = Math.max(0, Math.min(90, Number(text(formData, "grace_period")) || 3));
+
+  await prisma.mess.update({
+    where: { id: membership.messId },
+    data: {
+      autoCloseEnabled,
+      closeGracePeriodDays: gracePeriod,
+    },
+  });
+
+  revalidatePath("/settings");
+  refresh();
+}

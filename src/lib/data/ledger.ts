@@ -1,5 +1,11 @@
 import { redirect } from "next/navigation";
-import type { CashPayment, Expense, MessMember, Month, Profile } from "@/generated/prisma/client";
+import type {
+  CashPayment,
+  Expense,
+  MessMember,
+  Month,
+  Profile,
+} from "@/generated/prisma/client";
 import { Prisma } from "@/generated/prisma/client";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
 import { canCloseMonth, canManageMembers } from "@/lib/auth/mess";
@@ -83,11 +89,11 @@ export async function requireMembership(): Promise<ActiveMembership> {
         select: {
           id: true,
           name: true,
-          createdBy: true
-        }
-      }
+          createdBy: true,
+        },
+      },
     },
-    orderBy: { createdAt: "asc" }
+    orderBy: { createdAt: "asc" },
   });
 
   if (!membership) redirect("/onboarding");
@@ -97,13 +103,13 @@ export async function requireMembership(): Promise<ActiveMembership> {
 export async function getCurrentOpenMonth(messId: string) {
   const existing = await prisma.month.findFirst({
     where: { messId, status: "OPEN" },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
   });
 
   if (existing) return existing;
 
   const activeCount = await prisma.messMember.count({
-    where: { messId, status: "ACTIVE" }
+    where: { messId, status: "ACTIVE" },
   });
 
   return prisma.month.create({
@@ -111,8 +117,8 @@ export async function getCurrentOpenMonth(messId: string) {
       messId,
       label: currentMonthLabel(),
       memberCount: activeCount,
-      status: "OPEN"
-    }
+      status: "OPEN",
+    },
   });
 }
 
@@ -120,14 +126,14 @@ export async function getMessMembers(messId: string) {
   return prisma.messMember.findMany({
     where: { messId },
     include: { profile: true },
-    orderBy: [{ status: "asc" }, { createdAt: "asc" }]
+    orderBy: [{ status: "asc" }, { createdAt: "asc" }],
   });
 }
 
 export async function getMessMonths(messId: string) {
   return prisma.month.findMany({
     where: { messId },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
   });
 }
 
@@ -135,7 +141,7 @@ export async function getMonthExpenses(messId: string, monthId: string) {
   return prisma.expense.findMany({
     where: { messId, monthId },
     include: { member: { include: { profile: true } } },
-    orderBy: { date: "desc" }
+    orderBy: { date: "desc" },
   });
 }
 
@@ -143,41 +149,60 @@ export async function getMonthCashPayments(messId: string, monthId: string) {
   return prisma.cashPayment.findMany({
     where: { messId, monthId },
     include: { member: { include: { profile: true } } },
-    orderBy: { date: "desc" }
+    orderBy: { date: "desc" },
   });
 }
 
-async function getPreviousBalances(messId: string, members: MemberWithProfile[], before: Date) {
+async function getPreviousBalances(
+  messId: string,
+  members: MemberWithProfile[],
+  before: Date,
+) {
   const balances = new Map<string, number>();
   const previousClosedMonth = await prisma.month.findFirst({
     where: { messId, status: "CLOSED", closedAt: { not: null, lt: before } },
     orderBy: { closedAt: "desc" },
-    include: { summaries: true }
+    include: { summaries: true },
   });
 
   for (const member of members) {
-    const saved = previousClosedMonth?.summaries.find((summary) => summary.memberId === member.id);
-    balances.set(member.id, saved ? toNumber(saved.closingBalance) : toNumber(member.openingBalance));
+    const saved = previousClosedMonth?.summaries.find(
+      (summary) => summary.memberId === member.id,
+    );
+    balances.set(
+      member.id,
+      saved ? toNumber(saved.closingBalance) : toNumber(member.openingBalance),
+    );
   }
 
   return balances;
 }
 
-export async function calculateMonthlyLedger(messId: string, monthId: string): Promise<Ledger> {
+export async function calculateMonthlyLedger(
+  messId: string,
+  monthId: string,
+): Promise<Ledger> {
   const month = await prisma.month.findUnique({ where: { id: monthId } });
   if (!month || month.messId !== messId) redirect("/dashboard");
 
   const members = await prisma.messMember.findMany({
     where: { messId, status: "ACTIVE" },
     include: { profile: true },
-    orderBy: { createdAt: "asc" }
+    orderBy: { createdAt: "asc" },
   });
   const expenses = await getMonthExpenses(messId, monthId);
   const cashPayments = await getMonthCashPayments(messId, monthId);
-  const totalExpense = expenses.reduce((sum, expense) => sum + toNumber(expense.amount), 0);
+  const totalExpense = expenses.reduce(
+    (sum, expense) => sum + toNumber(expense.amount),
+    0,
+  );
   const memberCount = members.length;
   const monthlyShare = memberCount ? totalExpense / memberCount : 0;
-  const previousBalances = await getPreviousBalances(messId, members, month.createdAt);
+  const previousBalances = await getPreviousBalances(
+    messId,
+    members,
+    month.createdAt,
+  );
 
   const summaries = members.map((member) => {
     const expensePaid = expenses
@@ -197,7 +222,7 @@ export async function calculateMonthlyLedger(messId: string, monthId: string): P
       expensePaid,
       cashPaid,
       totalContribution,
-      closingBalance
+      closingBalance,
     };
   });
 
@@ -210,8 +235,12 @@ export async function calculateMonthlyLedger(messId: string, monthId: string): P
     totalExpense,
     memberCount,
     monthlyShare,
-    totalDue: summaries.filter((row) => row.closingBalance > 0).reduce((sum, row) => sum + row.closingBalance, 0),
-    totalAdvance: summaries.filter((row) => row.closingBalance < 0).reduce((sum, row) => sum + Math.abs(row.closingBalance), 0)
+    totalDue: summaries
+      .filter((row) => row.closingBalance > 0)
+      .reduce((sum, row) => sum + row.closingBalance, 0),
+    totalAdvance: summaries
+      .filter((row) => row.closingBalance < 0)
+      .reduce((sum, row) => sum + Math.abs(row.closingBalance), 0),
   };
 }
 
@@ -222,11 +251,22 @@ export async function getDashboardData() {
   return { membership, ledger };
 }
 
+export function getMonthEndFromLabel(label: string): Date {
+  const [monthName, yearStr] = label.split(" ");
+  const monthIndex = new Date(`${monthName} 1, 2000`).getMonth();
+  const year = parseInt(yearStr, 10);
+  return new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+}
+
 export function canManageMoney(role: string) {
   return role === "OWNER" || role === "MANAGER";
 }
 
-export function canAddExpenseForMember(role: string, actorMemberId: string, memberId: string) {
+export function canAddExpenseForMember(
+  role: string,
+  actorMemberId: string,
+  memberId: string,
+) {
   return canManageMoney(role) || actorMemberId === memberId;
 }
 
@@ -246,9 +286,9 @@ export async function closeOpenMonth(messId: string, monthId: string) {
   const cookingEntries = await prisma.cookingEntry.findMany({
     where: {
       messId,
-      date: { gte: ledger.month.createdAt, lte: endOfDate(new Date()) }
+      date: { gte: ledger.month.createdAt, lte: endOfDate(new Date()) },
     },
-    select: { memberId: true, status: true }
+    select: { memberId: true, status: true },
   });
 
   const cookedCountByMember = new Map<string, number>();
@@ -256,11 +296,17 @@ export async function closeOpenMonth(messId: string, monthId: string) {
 
   for (const entry of cookingEntries) {
     if (entry.status === "COMPLETED" || entry.status === "SWAPPED") {
-      cookedCountByMember.set(entry.memberId, (cookedCountByMember.get(entry.memberId) || 0) + 1);
+      cookedCountByMember.set(
+        entry.memberId,
+        (cookedCountByMember.get(entry.memberId) || 0) + 1,
+      );
     }
 
     if (entry.status === "SKIPPED") {
-      skippedCountByMember.set(entry.memberId, (skippedCountByMember.get(entry.memberId) || 0) + 1);
+      skippedCountByMember.set(
+        entry.memberId,
+        (skippedCountByMember.get(entry.memberId) || 0) + 1,
+      );
     }
   }
 
@@ -273,8 +319,8 @@ export async function closeOpenMonth(messId: string, monthId: string) {
       data: {
         status: "CLOSED",
         closedAt: new Date(),
-        memberCount: ledger.memberCount
-      }
+        memberCount: ledger.memberCount,
+      },
     });
 
     await tx.monthlySummary.createMany({
@@ -287,9 +333,9 @@ export async function closeOpenMonth(messId: string, monthId: string) {
         expensePaid: new Prisma.Decimal(row.expensePaid),
         cashPaid: new Prisma.Decimal(row.cashPaid),
         totalContribution: new Prisma.Decimal(row.totalContribution),
-        closingBalance: new Prisma.Decimal(row.closingBalance)
+        closingBalance: new Prisma.Decimal(row.closingBalance),
       })),
-      skipDuplicates: true
+      skipDuplicates: true,
     });
 
     await tx.cookingMonthlySummary.createMany({
@@ -298,13 +344,13 @@ export async function closeOpenMonth(messId: string, monthId: string) {
         monthId,
         memberId: member.id,
         cookedCount: cookedCountByMember.get(member.id) || 0,
-        skippedCount: skippedCountByMember.get(member.id) || 0
+        skippedCount: skippedCountByMember.get(member.id) || 0,
       })),
-      skipDuplicates: true
+      skipDuplicates: true,
     });
 
     const nextOpen = await tx.month.findFirst({
-      where: { messId, status: "OPEN" }
+      where: { messId, status: "OPEN" },
     });
 
     if (!nextOpen) {
@@ -313,8 +359,8 @@ export async function closeOpenMonth(messId: string, monthId: string) {
           messId,
           label: nextMonthLabel(current.createdAt),
           memberCount: ledger.memberCount,
-          status: "OPEN"
-        }
+          status: "OPEN",
+        },
       });
     }
   });

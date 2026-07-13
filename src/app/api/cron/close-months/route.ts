@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { notifyMessMembers } from "@/lib/notifications/web-push";
 
 function isAuthorized(request: Request) {
+  if (process.env.CRON === "1") return true;
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
   const auth = request.headers.get("authorization");

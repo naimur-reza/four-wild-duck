@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import {
+  closeOverdueMonths,
   ensureInviteLink,
   leaveMess,
   regenerateInviteLink,
@@ -351,6 +352,11 @@ export default async function SettingsPage({
               </div>
               <SubmitButton pendingText="Saving..." className="rounded-2xl bg-teal-700 px-4 py-3 text-sm font-black text-white">
                 Save settings
+              </SubmitButton>
+            </form>
+            <form action={closeOverdueMonths} className="mt-4">
+              <SubmitButton pendingText="Closing..." className="w-full rounded-2xl bg-amber-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-amber-100 transition hover:bg-slate-950">
+                Close overdue months now
               </SubmitButton>
             </form>
           </SectionCard>

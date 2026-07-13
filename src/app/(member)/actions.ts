@@ -10,6 +10,7 @@ import {
   canManageMoney,
   closeOpenMonth,
   getCurrentOpenMonth,
+  getMonthEndFromLabel,
   parseDate,
   requireMembership,
   toDecimal
@@ -618,5 +619,48 @@ export async function updateAutoCloseSettings(formData: FormData) {
   });
 
   revalidatePath("/settings");
+  refresh();
+}
+
+export async function closeOverdueMonths() {
+  const membership = await requireMembership();
+  if (membership.role !== "OWNER") redirect("/settings");
+
+  const mess = await prisma.mess.findUnique({
+    where: { id: membership.messId },
+    select: { autoCloseEnabled: true, closeGracePeriodDays: true },
+  });
+  if (!mess || !mess.autoCloseEnabled) redirect("/settings");
+
+  const openMonths = await prisma.month.findMany({
+    where: { messId: membership.messId, status: "OPEN" },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const overdue = openMonths.filter((month) => {
+    const monthEnd = getMonthEndFromLabel(month.label);
+    const graceDate = new Date(monthEnd);
+    graceDate.setDate(graceDate.getDate() + mess.closeGracePeriodDays);
+    return new Date() > graceDate;
+  });
+
+  for (const month of overdue) {
+    await closeOpenMonth(membership.messId, month.id);
+
+    await notifyMessMembers({
+      messId: membership.messId,
+      actorUserId: membership.userId,
+      payload: {
+        title: "Month closed",
+        body: `${month.label} has been closed. Check the report and history.`,
+        url: "/reports",
+      },
+    });
+  }
+
+  revalidatePath("/history");
+  revalidatePath("/reports");
+  revalidatePath("/dashboard");
+  revalidatePath("/expenses");
   refresh();
 }

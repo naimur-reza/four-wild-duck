@@ -103,7 +103,7 @@ export async function requireMembership(): Promise<ActiveMembership> {
 export async function getCurrentOpenMonth(messId: string) {
   const existing = await prisma.month.findFirst({
     where: { messId, status: "OPEN" },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
   });
 
   if (existing) {
@@ -261,7 +261,7 @@ export async function getDashboardData() {
 
 function nextMonthLabelFromLabel(label: string) {
   const end = getMonthEndFromLabel(label);
-  const next = new Date(Date.UTC(end.getFullYear(), end.getMonth() + 1, 1));
+  const next = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 1));
   return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(next);
 }
 
@@ -269,7 +269,7 @@ export function getMonthEndFromLabel(label: string): Date {
   const [monthName, yearStr] = label.split(" ");
   const monthIndex = new Date(`${monthName} 1, 2000`).getMonth();
   const year = parseInt(yearStr, 10);
-  return new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+  return new Date(Date.UTC(year, monthIndex + 1, 0, 17, 59, 59, 999));
 }
 
 export function canManageMoney(role: string) {

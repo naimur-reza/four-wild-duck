@@ -106,7 +106,15 @@ export async function getCurrentOpenMonth(messId: string) {
     orderBy: { createdAt: "desc" },
   });
 
-  if (existing) return existing;
+  if (existing) {
+    const today = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "Asia/Dhaka" }).format(new Date());
+    if (existing.label === today) return existing;
+    if (getMonthEndFromLabel(existing.label).getTime() < Date.now()) {
+      await closeOpenMonth(messId, existing.id);
+      return getCurrentOpenMonth(messId);
+    }
+    return existing;
+  }
 
   const activeCount = await prisma.messMember.count({
     where: { messId, status: "ACTIVE" },
@@ -115,7 +123,7 @@ export async function getCurrentOpenMonth(messId: string) {
   return prisma.month.create({
     data: {
       messId,
-      label: currentMonthLabel(),
+      label: new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "Asia/Dhaka" }).format(new Date()),
       memberCount: activeCount,
       status: "OPEN",
     },
@@ -283,33 +291,6 @@ export async function closeOpenMonth(messId: string, monthId: string) {
 
   if (ledger.month.status === "CLOSED") return;
 
-  const cookingEntries = await prisma.cookingEntry.findMany({
-    where: {
-      messId,
-      date: { gte: ledger.month.createdAt, lte: endOfDate(new Date()) },
-    },
-    select: { memberId: true, status: true },
-  });
-
-  const cookedCountByMember = new Map<string, number>();
-  const skippedCountByMember = new Map<string, number>();
-
-  for (const entry of cookingEntries) {
-    if (entry.status === "COMPLETED" || entry.status === "SWAPPED") {
-      cookedCountByMember.set(
-        entry.memberId,
-        (cookedCountByMember.get(entry.memberId) || 0) + 1,
-      );
-    }
-
-    if (entry.status === "SKIPPED") {
-      skippedCountByMember.set(
-        entry.memberId,
-        (skippedCountByMember.get(entry.memberId) || 0) + 1,
-      );
-    }
-  }
-
   await prisma.$transaction(async (tx) => {
     const current = await tx.month.findUnique({ where: { id: monthId } });
     if (!current || current.status === "CLOSED") return;
@@ -338,17 +319,6 @@ export async function closeOpenMonth(messId: string, monthId: string) {
       skipDuplicates: true,
     });
 
-    await tx.cookingMonthlySummary.createMany({
-      data: ledger.members.map((member) => ({
-        messId,
-        monthId,
-        memberId: member.id,
-        cookedCount: cookedCountByMember.get(member.id) || 0,
-        skippedCount: skippedCountByMember.get(member.id) || 0,
-      })),
-      skipDuplicates: true,
-    });
-
     const nextOpen = await tx.month.findFirst({
       where: { messId, status: "OPEN" },
     });
@@ -357,7 +327,7 @@ export async function closeOpenMonth(messId: string, monthId: string) {
       await tx.month.create({
         data: {
           messId,
-          label: nextMonthLabel(current.createdAt),
+          label: new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "Asia/Dhaka" }).format(new Date()),
           memberCount: ledger.memberCount,
           status: "OPEN",
         },

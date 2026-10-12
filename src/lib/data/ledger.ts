@@ -10,7 +10,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
 import { canCloseMonth, canManageMembers } from "@/lib/auth/mess";
 import { prisma } from "@/lib/db/prisma";
-import { currentMonthLabel, nextMonthLabel } from "@/lib/utils";
+
 
 export type ActiveMembership = MessMember & {
   mess: { id: string; name: string; createdBy: string };
@@ -259,6 +259,12 @@ export async function getDashboardData() {
   return { membership, ledger };
 }
 
+function nextMonthLabelFromLabel(label: string) {
+  const end = getMonthEndFromLabel(label);
+  const next = new Date(Date.UTC(end.getFullYear(), end.getMonth() + 1, 1));
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(next);
+}
+
 export function getMonthEndFromLabel(label: string): Date {
   const [monthName, yearStr] = label.split(" ");
   const monthIndex = new Date(`${monthName} 1, 2000`).getMonth();
@@ -327,7 +333,7 @@ export async function closeOpenMonth(messId: string, monthId: string) {
       await tx.month.create({
         data: {
           messId,
-          label: new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "Asia/Dhaka" }).format(new Date()),
+          label: nextMonthLabelFromLabel(current.label),
           memberCount: ledger.memberCount,
           status: "OPEN",
         },

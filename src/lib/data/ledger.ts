@@ -109,7 +109,12 @@ export async function getCurrentOpenMonth(messId: string) {
   if (existing) {
     const today = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "Asia/Dhaka" }).format(new Date());
     if (existing.label === today) return existing;
-    if (getMonthEndFromLabel(existing.label).getTime() < Date.now()) {
+    const settings = await prisma.mess.findUnique({
+      where: { id: messId },
+      select: { autoCloseEnabled: true, closeGracePeriodDays: true },
+    });
+    const graceMs = Math.max(0, settings?.closeGracePeriodDays ?? 3) * 86400000;
+    if (settings?.autoCloseEnabled && getMonthEndFromLabel(existing.label).getTime() + graceMs < Date.now()) {
       await closeOpenMonth(messId, existing.id);
       return getCurrentOpenMonth(messId);
     }
@@ -168,8 +173,8 @@ async function getPreviousBalances(
 ) {
   const balances = new Map<string, number>();
   const previousClosedMonth = await prisma.month.findFirst({
-    where: { messId, status: "CLOSED", closedAt: { not: null, lt: before } },
-    orderBy: { closedAt: "desc" },
+    where: { messId, status: "CLOSED", createdAt: { lt: before } },
+    orderBy: { createdAt: "desc" },
     include: { summaries: true },
   });
 
@@ -301,14 +306,16 @@ export async function closeOpenMonth(messId: string, monthId: string) {
     const current = await tx.month.findUnique({ where: { id: monthId } });
     if (!current || current.status === "CLOSED") return;
 
-    await tx.month.update({
-      where: { id: monthId },
+    const claimed = await tx.month.updateMany({
+      where: { id: monthId, messId, status: "OPEN" },
       data: {
         status: "CLOSED",
         closedAt: new Date(),
         memberCount: ledger.memberCount,
       },
     });
+
+    if (claimed.count !== 1) return;
 
     await tx.monthlySummary.createMany({
       data: ledger.summaries.map((row) => ({

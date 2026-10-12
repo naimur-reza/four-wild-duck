@@ -111,7 +111,7 @@ export default async function ExpensesPage({
         />
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-[0.72fr_1.28fr] xl:gap-5">
+      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)] xl:gap-5">
         <SectionCard className="h-fit p-3 sm:p-5 xl:sticky xl:top-24">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -129,7 +129,7 @@ export default async function ExpensesPage({
 
           <form
             action={addExpense}
-            className="mt-3 grid grid-cols-2 gap-2 sm:mt-5 sm:block sm:space-y-3"
+            className="mt-3 grid min-w-0 grid-cols-1 gap-2 min-[380px]:grid-cols-2 sm:mt-5 sm:block sm:space-y-3"
           >
             <select
               name="category"
@@ -173,7 +173,7 @@ export default async function ExpensesPage({
             />
             <input
               name="note"
-              className="col-span-2 h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs outline-none transition focus:border-teal-500 sm:h-12 sm:w-full sm:rounded-2xl sm:px-4 sm:text-sm"
+              className="min-[380px]:col-span-2 h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs outline-none transition focus:border-teal-500 sm:h-12 sm:w-full sm:rounded-2xl sm:px-4 sm:text-sm"
               placeholder="Note"
             />
             <SubmitButton className="col-span-2 h-10 rounded-xl bg-teal-700 px-4 text-xs font-black text-white shadow-lg shadow-teal-100 transition hover:bg-slate-950 sm:h-12 sm:w-full sm:rounded-2xl sm:text-sm">
@@ -182,7 +182,7 @@ export default async function ExpensesPage({
           </form>
         </SectionCard>
 
-        <div className="space-y-3 sm:space-y-4">
+        <div className="min-w-0 space-y-3 sm:space-y-4">
           <SectionCard className="p-3 sm:p-4 md:p-5">
             <div className="mb-2 flex items-center justify-between gap-3 sm:mb-4 sm:flex-row sm:items-end">
               <div className="min-w-0">
@@ -229,16 +229,16 @@ export default async function ExpensesPage({
             </SectionCard>
           ) : null}
 
-          <div className="space-y-2 sm:space-y-3">
+          <div className="min-w-0 space-y-2 sm:space-y-3">
             {expenses.map((expense) => {
-              const canEdit = canAddExpenseForMember(
+              const canEdit = selectedMonth.status === "OPEN" && canAddExpenseForMember(
                 membership.role,
                 membership.id,
                 expense.memberId || "",
               );
 
               return (
-                <SectionCard key={expense.id} className="overflow-hidden p-3 sm:p-4 md:p-4">
+                <SectionCard key={expense.id} className="min-w-0 overflow-hidden p-3 sm:p-4 md:p-4">
                   <details className="group">
                     <summary className="flex cursor-pointer list-none items-start justify-between gap-3 sm:gap-4">
                       <div className="min-w-0">

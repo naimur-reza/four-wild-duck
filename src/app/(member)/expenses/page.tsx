@@ -115,14 +115,14 @@ export default async function ExpensesPage({
       </div>
 
       <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)] xl:gap-5">
-        <SectionCard className="h-fit p-3 sm:p-5 xl:sticky xl:top-24">
+        <SectionCard className="h-fit border border-teal-500/20 p-4 shadow-lg shadow-teal-950/5 sm:p-6 xl:sticky xl:top-24">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.18em] text-teal-700 sm:text-xs sm:tracking-[0.2em]">
                 New
               </p>
               <h3 className="mt-0.5 text-lg font-black sm:mt-1 sm:text-2xl">
-                Add expense
+                Add a new expense
               </h3>
             </div>
             <div className="rounded-xl bg-teal-50 px-2.5 py-1.5 text-[10px] font-black text-teal-700 sm:rounded-2xl sm:px-3 sm:py-2 sm:text-xs">
@@ -132,8 +132,9 @@ export default async function ExpensesPage({
 
           <form
             action={addExpense}
-            className="mt-3 grid min-w-0 grid-cols-1 gap-2 min-[380px]:grid-cols-2 sm:mt-5 sm:block sm:space-y-3"
+            className="mt-5 grid min-w-0 grid-cols-1 gap-2 sm:gap-3"
           >
+            <label className="col-span-full text-xs font-bold text-slate-500 sm:block">Category</label>
             <select
               name="category"
               className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold outline-none transition focus:border-teal-500 sm:h-12 sm:w-full sm:rounded-2xl sm:px-4 sm:text-sm"
@@ -144,15 +145,17 @@ export default async function ExpensesPage({
                 </option>
               ))}
             </select>
+            <label className="col-span-full text-xs font-bold text-slate-500 sm:block">Amount (৳)</label>
             <input
               name="amount"
               type="number"
               step="0.01"
-              min="0"
+              min="0.01"
               className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs outline-none transition focus:border-teal-500 sm:h-12 sm:w-full sm:rounded-2xl sm:px-4 sm:text-sm"
               placeholder="Amount"
               required
             />
+            <label className="col-span-full text-xs font-bold text-slate-500 sm:block">Paid by</label>
             <select
               name="member_id"
               defaultValue={membership.id}
@@ -168,19 +171,21 @@ export default async function ExpensesPage({
             {!canPickMember ? (
               <input type="hidden" name="member_id" value={membership.id} />
             ) : null}
+            <label className="col-span-full text-xs font-bold text-slate-500 sm:block">Expense date</label>
             <input
               name="date"
               type="date"
               defaultValue={formatDateInput()}
               className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs outline-none transition focus:border-teal-500 sm:h-12 sm:w-full sm:rounded-2xl sm:px-4 sm:text-sm"
             />
+            <label className="col-span-full text-xs font-bold text-slate-500 sm:block">Description (optional)</label>
             <input
               name="note"
               className="min-[380px]:col-span-2 h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs outline-none transition focus:border-teal-500 sm:h-12 sm:w-full sm:rounded-2xl sm:px-4 sm:text-sm"
-              placeholder="Note"
+              placeholder="e.g. Weekly groceries, electricity bill"
             />
-            <SubmitButton className="col-span-2 h-10 rounded-xl bg-teal-700 px-4 text-xs font-black text-white shadow-lg shadow-teal-100 transition hover:bg-slate-950 sm:h-12 sm:w-full sm:rounded-2xl sm:text-sm">
-              Save
+            <SubmitButton className="mt-2 h-12 rounded-xl bg-teal-700 px-4 text-xs font-black text-white shadow-lg shadow-teal-100 transition hover:bg-slate-950 sm:h-12 sm:w-full sm:rounded-2xl sm:text-sm">
+              Save expense
             </SubmitButton>
           </form>
         </SectionCard>

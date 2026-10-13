@@ -8,70 +8,71 @@ export type InsightData = {
   totalCurrent: number;
   totalPrevious: number;
   expenseCount: number;
+  historicalCount: number;
   categories: InsightRow[];
   notes: InsightRow[];
-  caveat: string;
 };
 
 const money = (n: number) => Math.round(n * 100) / 100;
-
-function compare(label: string, current: number, previous: number): InsightRow {
+const monthLabel = (date: Date) => new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "Asia/Dhaka" }).format(date);
+const compare = (label: string, current: number, previous: number): InsightRow => {
   const difference = money(current - previous);
-  return { label, current: money(current), previous: money(previous), difference, percent: previous > 0 ? Math.round((difference / previous) * 100) : null };
-}
+  return { label, current: money(current), previous: money(previous), difference, percent: previous > 0 ? Math.round(difference / previous * 100) : null };
+};
 
 export async function loadExpenseInsights(): Promise<InsightData> {
   const membership = await requireMembership();
-  const today = new Date();
-  const formatter = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "Asia/Dhaka" });
-  const parts = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "numeric", timeZone: "Asia/Dhaka" }).formatToParts(today);
-  const year = Number(parts.find((part) => part.type === "year")?.value);
-  const month = Number(parts.find((part) => part.type === "month")?.value);
-  const currentMonth = formatter.format(new Date(Date.UTC(year, month - 1, 15)));
-  const previousMonth = formatter.format(new Date(Date.UTC(year, month - 2, 15)));
-  // Match accounting period by label, not a single Month id. Prior rollover may have created duplicates.
-  const months = await prisma.month.findMany({
-    where: { messId: membership.messId, label: { in: [currentMonth, previousMonth] } },
-    select: { id: true, label: true },
-  });
-  const currentIds = months.filter((row) => row.label === currentMonth).map((row) => row.id);
-  const previousIds = months.filter((row) => row.label === previousMonth).map((row) => row.id);
-  const expenses = await prisma.expense.findMany({
-    where: { messId: membership.messId, monthId: { in: [...currentIds, ...previousIds] } },
-    select: { monthId: true, category: true, amount: true, note: true },
-    take: 10000,
-  });
-  const currentSet = new Set(currentIds);
-  const previousSet = new Set(previousIds);
-  const totals = (period: Set<string>, key: (expense: (typeof expenses)[number]) => string | null) => {
-    const result = new Map<string, number>();
-    for (const expense of expenses) {
-      if (!expense.monthId || !period.has(expense.monthId)) continue;
+  const [months, expenses] = await Promise.all([
+    prisma.month.findMany({ where: { messId: membership.messId }, select: { id: true, label: true } }),
+    prisma.expense.findMany({
+      where: { messId: membership.messId },
+      select: { id: true, monthId: true, date: true, category: true, amount: true, note: true },
+      orderBy: { date: "desc" },
+    }),
+  ]);
+  const labels = new Map(months.map((month) => [month.id, month.label]));
+  // The date is authoritative for expense reporting. Older imports may have
+  // missing/stale month links; use the linked month only when dates are invalid.
+  const grouped = new Map<string, typeof expenses>();
+  for (const expense of expenses) {
+    const label = monthLabel(expense.date) || (expense.monthId ? labels.get(expense.monthId) : undefined);
+    if (!label) continue;
+    const group = grouped.get(label) ?? [];
+    group.push(expense);
+    grouped.set(label, group);
+  }
+  const currentCalendar = monthLabel(new Date());
+  const periods = [...grouped.keys()].sort((a, b) => Date.parse("1 " + b) - Date.parse("1 " + a));
+  // If this calendar month has no records, show the latest month with actual data,
+  // rather than incorrectly claiming there have never been expenses.
+  const currentMonth = grouped.has(currentCalendar) ? currentCalendar : periods[0] ?? currentCalendar;
+  const previousMonth = monthLabel(new Date(Date.UTC(
+    new Date("1 " + currentMonth).getUTCFullYear(),
+    new Date("1 " + currentMonth).getUTCMonth() - 1, 15
+  )));
+  const current = grouped.get(currentMonth) ?? [];
+  const previous = grouped.get(previousMonth) ?? [];
+  const total = (rows: typeof expenses) => money(rows.reduce((sum, row) => sum + Number(row.amount), 0));
+  const rollup = (rows: typeof expenses, key: (expense: typeof expenses[number]) => string | null) => {
+    const totals = new Map<string, number>();
+    for (const expense of rows) {
       const label = key(expense);
-      if (!label) continue;
-      result.set(label, money((result.get(label) ?? 0) + Number(expense.amount)));
+      if (label) totals.set(label, money((totals.get(label) ?? 0) + Number(expense.amount)));
     }
-    return result;
+    return totals;
   };
-  const currentCategories = totals(currentSet, (expense) => expense.category);
-  const previousCategories = totals(previousSet, (expense) => expense.category);
-  // Notes are user-entered free text; exact matching only. Do not pretend synonyms are the same product.
-  const normalizeNote = (note: string | null) => {
-    const value = note?.trim().replace(/\s+/g, " ").toLocaleLowerCase();
-    return value && value.length >= 2 ? value.slice(0, 80) : null;
-  };
-  const currentNotes = totals(currentSet, (expense) => normalizeNote(expense.note));
-  const previousNotes = totals(previousSet, (expense) => normalizeNote(expense.note));
-  const rows = (a: Map<string, number>, b: Map<string, number>) =>
-    [...new Set([...a.keys(), ...b.keys()])].map((label) => compare(label, a.get(label) ?? 0, b.get(label) ?? 0))
+  const rows = (key: (expense: typeof expenses[number]) => string | null) => {
+    const a = rollup(current, key);
+    const b = rollup(previous, key);
+    return [...new Set([...a.keys(), ...b.keys()])]
+      .map((label) => compare(label, a.get(label) ?? 0, b.get(label) ?? 0))
       .sort((x, y) => y.current - x.current);
-  const totalCurrent = money([...currentCategories.values()].reduce((a, b) => a + b, 0));
-  const totalPrevious = money([...previousCategories.values()].reduce((a, b) => a + b, 0));
+  };
   return {
-    currentMonth, previousMonth, totalCurrent, totalPrevious,
-    expenseCount: expenses.filter((e) => e.monthId && currentSet.has(e.monthId)).length,
-    categories: rows(currentCategories, previousCategories),
-    notes: rows(currentNotes, previousNotes).slice(0, 15),
-    caveat: "এগুলো মোট খরচের তুলনা, পণ্যের একক বাজারদরের পরিবর্তন নয়। পরিমাণ ও ইউনিট মূল্য সংরক্ষিত না থাকায় দাম বেড়েছে কি না নিশ্চিত বলা যায় না।",
+    currentMonth, previousMonth,
+    totalCurrent: total(current), totalPrevious: total(previous),
+    expenseCount: current.length, historicalCount: expenses.length,
+    categories: rows((expense) => expense.category),
+    notes: rows((expense) => expense.note?.trim().replace(/\s+/g, " ").toLocaleLowerCase().slice(0, 80) || null).slice(0, 8),
   };
 }

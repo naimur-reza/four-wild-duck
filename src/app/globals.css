@@ -64,3 +64,18 @@ input, select, textarea {
     transform: translateX(100%);
   }
 }
+
+/* Application-wide dark palette, including legacy utility-based screens. */
+:root { color-scheme: dark; --background: #080e19; --foreground: #e8f1f8; }
+html, body { background: #080e19 !important; color: #e8f1f8; }
+body { background-image: radial-gradient(circle at 15% 0%, #123638 0, transparent 32rem), linear-gradient(160deg,#080e19,#101827) !important; }
+.bg-white, .bg-slate-50, .bg-slate-50\/70, .bg-slate-50\/80, .bg-slate-50\/90, .bg-slate-100, .bg-\[\#f8fbfa\] { background-color: #141f30 !important; }
+.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700 { color: #e8f1f8 !important; }
+.text-slate-600, .text-slate-500, .text-slate-400 { color: #9aafc3 !important; }
+.border-slate-100, .border-slate-200, .border-slate-300 { border-color: #2a3b50 !important; }
+.bg-teal-50, .bg-emerald-50 { background-color: #103b3a !important; }
+.bg-rose-50 { background-color: #3b1d30 !important; }
+.bg-amber-50 { background-color: #3d301c !important; }
+input, select, textarea { background-color: #101b2a !important; color: #edf5fc !important; border-color: #34465a !important; min-width: 0; }
+input::placeholder, textarea::placeholder { color: #8ca0b5; }
+option { background: #101b2a; color: #edf5fc; }

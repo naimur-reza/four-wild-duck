@@ -10,7 +10,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
 import { canCloseMonth, canManageMembers } from "@/lib/auth/mess";
 import { prisma } from "@/lib/db/prisma";
-import { currentMonthLabel, nextMonthLabel } from "@/lib/utils";
+
 
 export type ActiveMembership = MessMember & {
   mess: { id: string; name: string; createdBy: string };
@@ -103,10 +103,23 @@ export async function requireMembership(): Promise<ActiveMembership> {
 export async function getCurrentOpenMonth(messId: string) {
   const existing = await prisma.month.findFirst({
     where: { messId, status: "OPEN" },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
   });
 
-  if (existing) return existing;
+  if (existing) {
+    const today = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "Asia/Dhaka" }).format(new Date());
+    if (existing.label === today) return existing;
+    const settings = await prisma.mess.findUnique({
+      where: { id: messId },
+      select: { autoCloseEnabled: true, closeGracePeriodDays: true },
+    });
+    const graceMs = Math.max(0, settings?.closeGracePeriodDays ?? 3) * 86400000;
+    if (settings?.autoCloseEnabled && getMonthEndFromLabel(existing.label).getTime() + graceMs < Date.now()) {
+      await closeOpenMonth(messId, existing.id);
+      return getCurrentOpenMonth(messId);
+    }
+    return existing;
+  }
 
   const activeCount = await prisma.messMember.count({
     where: { messId, status: "ACTIVE" },
@@ -115,7 +128,7 @@ export async function getCurrentOpenMonth(messId: string) {
   return prisma.month.create({
     data: {
       messId,
-      label: currentMonthLabel(),
+      label: new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "Asia/Dhaka" }).format(new Date()),
       memberCount: activeCount,
       status: "OPEN",
     },
@@ -160,8 +173,8 @@ async function getPreviousBalances(
 ) {
   const balances = new Map<string, number>();
   const previousClosedMonth = await prisma.month.findFirst({
-    where: { messId, status: "CLOSED", closedAt: { not: null, lt: before } },
-    orderBy: { closedAt: "desc" },
+    where: { messId, status: "CLOSED", createdAt: { lt: before } },
+    orderBy: { createdAt: "desc" },
     include: { summaries: true },
   });
 
@@ -251,11 +264,17 @@ export async function getDashboardData() {
   return { membership, ledger };
 }
 
+function nextMonthLabelFromLabel(label: string) {
+  const end = getMonthEndFromLabel(label);
+  const next = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 1));
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(next);
+}
+
 export function getMonthEndFromLabel(label: string): Date {
   const [monthName, yearStr] = label.split(" ");
   const monthIndex = new Date(`${monthName} 1, 2000`).getMonth();
   const year = parseInt(yearStr, 10);
-  return new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+  return new Date(Date.UTC(year, monthIndex + 1, 0, 17, 59, 59, 999));
 }
 
 export function canManageMoney(role: string) {
@@ -283,45 +302,20 @@ export async function closeOpenMonth(messId: string, monthId: string) {
 
   if (ledger.month.status === "CLOSED") return;
 
-  const cookingEntries = await prisma.cookingEntry.findMany({
-    where: {
-      messId,
-      date: { gte: ledger.month.createdAt, lte: endOfDate(new Date()) },
-    },
-    select: { memberId: true, status: true },
-  });
-
-  const cookedCountByMember = new Map<string, number>();
-  const skippedCountByMember = new Map<string, number>();
-
-  for (const entry of cookingEntries) {
-    if (entry.status === "COMPLETED" || entry.status === "SWAPPED") {
-      cookedCountByMember.set(
-        entry.memberId,
-        (cookedCountByMember.get(entry.memberId) || 0) + 1,
-      );
-    }
-
-    if (entry.status === "SKIPPED") {
-      skippedCountByMember.set(
-        entry.memberId,
-        (skippedCountByMember.get(entry.memberId) || 0) + 1,
-      );
-    }
-  }
-
   await prisma.$transaction(async (tx) => {
     const current = await tx.month.findUnique({ where: { id: monthId } });
     if (!current || current.status === "CLOSED") return;
 
-    await tx.month.update({
-      where: { id: monthId },
+    const claimed = await tx.month.updateMany({
+      where: { id: monthId, messId, status: "OPEN" },
       data: {
         status: "CLOSED",
         closedAt: new Date(),
         memberCount: ledger.memberCount,
       },
     });
+
+    if (claimed.count !== 1) return;
 
     await tx.monthlySummary.createMany({
       data: ledger.summaries.map((row) => ({
@@ -338,17 +332,6 @@ export async function closeOpenMonth(messId: string, monthId: string) {
       skipDuplicates: true,
     });
 
-    await tx.cookingMonthlySummary.createMany({
-      data: ledger.members.map((member) => ({
-        messId,
-        monthId,
-        memberId: member.id,
-        cookedCount: cookedCountByMember.get(member.id) || 0,
-        skippedCount: skippedCountByMember.get(member.id) || 0,
-      })),
-      skipDuplicates: true,
-    });
-
     const nextOpen = await tx.month.findFirst({
       where: { messId, status: "OPEN" },
     });
@@ -357,7 +340,7 @@ export async function closeOpenMonth(messId: string, monthId: string) {
       await tx.month.create({
         data: {
           messId,
-          label: nextMonthLabel(current.createdAt),
+          label: nextMonthLabelFromLabel(current.label),
           memberCount: ledger.memberCount,
           status: "OPEN",
         },

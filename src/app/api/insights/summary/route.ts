@@ -36,7 +36,8 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
           temperature: 0.25,
-          max_tokens: 450,
+          max_completion_tokens: 1800,
+          reasoning_effort: "low",
           messages: [
             { role: "system", content: "You are a careful Bangladeshi mess expense analyst. Write 3-5 short, natural Bangla sentences, friendly and helpful for all mess members. Use only the JSON numbers provided. Mention biggest category and important month-over-month differences if supported. Clearly distinguish total spending from unit prices: NEVER claim a product price increased without quantity and unit-price data. Do not invent causes, figures, transactions, people, recommendations involving specific products not in the data, or market trends. No markdown table. Currency is Bangladeshi taka. If prior month is zero, do not calculate growth percent. End with a gentle practical suggestion." },
             { role: "user", content: JSON.stringify(payload) },
@@ -48,9 +49,12 @@ export async function POST(request: Request) {
       clearTimeout(timeout);
     }
     if (!response.ok) return NextResponse.json({ error: "AI summary is temporarily unavailable" }, { status: 502 });
-    const result = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const result = await response.json() as { choices?: Array<{ finish_reason?: string; message?: { content?: string } }> };
     const summary = result.choices?.[0]?.message?.content?.trim();
-    if (!summary) return NextResponse.json({ error: "Empty AI response" }, { status: 502 });
+    if (!summary) {
+      const finish = result.choices?.[0]?.finish_reason;
+      return NextResponse.json({ error: finish === "length" ? "AI উত্তর শেষ করতে পারেনি। আবার চেষ্টা করুন।" : "AI কোনো লেখা ফেরত দেয়নি। আবার চেষ্টা করুন।" }, { status: 502 });
+    }
     return NextResponse.json({ summary: summary.slice(0, 2500) }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Could not generate the summary right now" }, { status: 500 });

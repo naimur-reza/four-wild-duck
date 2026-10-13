@@ -21,7 +21,7 @@ body {
     radial-gradient(circle at 95% 0%, rgba(14, 165, 233, 0.14), transparent 30rem),
     linear-gradient(180deg, #f8fbfa 0%, #eef5f3 44%, #f6f8fb 100%);
   color: var(--foreground);
-  font-family: var(--font-plus-jakarta), var(--font-geist-sans), Arial, sans-serif;
+  font-family: var(--font-hind-siliguri), var(--font-plus-jakarta), var(--font-geist-sans), Arial, sans-serif;
   overflow-x: hidden;
   padding-bottom: env(safe-area-inset-bottom);
 }

@@ -47,7 +47,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${plusJakarta.variable} antialiased`}
       >
-        <script dangerouslySetInnerHTML={{ __html: 'try{var t=localStorage.getItem("mess-khata-theme");document.documentElement.classList.toggle("dark",t?t==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches)}catch(e){}' }} />
+        <script dangerouslySetInnerHTML={{ __html: 'document.documentElement.classList.remove("dark");' }} />
         {children}
         <RegisterServiceWorker />
       </body>

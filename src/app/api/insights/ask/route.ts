@@ -66,8 +66,8 @@ RULES:
 - If you can't answer from the data, say so politely`;
 
     const candidateModels = [
-      process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
       "llama-3.1-8b-instant",
+      "llama-3.3-70b-versatile",
     ];
 
     let answer = "";
@@ -85,7 +85,7 @@ RULES:
             max_completion_tokens: 1200,
             messages: [
               { role: "system", content: systemPrompt },
-              { role: "user", content: `Question: ${question}\n\nRecent expenses:\n${JSON.stringify(ctx.recentExpenses.slice(0, 100))}` },
+              { role: "user", content: `Question: ${question}\n\nRecent expenses:\n${JSON.stringify(ctx.recentExpenses.slice(0, 80))}` },
             ],
           }),
           cache: "no-store",
@@ -95,9 +95,12 @@ RULES:
           const result = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
           answer = result.choices?.[0]?.message?.content?.trim() || "";
           if (answer) break;
+        } else {
+          const errText = await response.text();
+          console.error(`Groq error for ${model}:`, response.status, errText);
         }
-      } catch {
-        // Fallback to next model
+      } catch (err) {
+        console.error(`Groq fetch error for ${model}:`, err);
       }
     }
 

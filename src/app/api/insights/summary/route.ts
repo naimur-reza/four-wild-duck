@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   try {
     // Auth and mess isolation are enforced by loadExpenseInsights -> requireMembership.
     const data = await loadExpenseInsights();
-    if (!data.expenseCount && data.totalPrevious === 0) return NextResponse.json({ summary: "এই মেসে বিশ্লেষণের জন্য কোনো খরচের রেকর্ড পাওয়া যায়নি।" });
+    if (!data.expenseCount) return NextResponse.json({ error: "এই মেসে কোনো expense record পাওয়া যায়নি।" }, { status: 404 });
     const payload = {
       currentMonth: data.currentMonth,
       previousMonth: data.previousMonth,
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       expenseCount: data.expenseCount,
       categories: data.categories,
       notes: data.notes,
-      caveat: data.caveat,
+      caveat: "Spending changes do not establish unit price changes.",
     };
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);

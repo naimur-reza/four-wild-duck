@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Moon, Sun } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { BottomNav } from "@/components/layout/bottom-nav";
@@ -32,9 +31,6 @@ export function AppShell({
   currentLabel: string;
 }) {
   const session = authClient.useSession();
-  const [dark, setDark] = useState(false);
-  useEffect(() => { setDark(document.documentElement.classList.contains("dark")); }, []);
-  function toggleTheme() { const next = !document.documentElement.classList.contains("dark"); document.documentElement.classList.toggle("dark", next); localStorage.setItem("mess-khata-theme", next ? "dark" : "light"); setDark(next); }
   const sessionUser = session.data?.user as SessionUser | undefined;
   const [memberSummary, setMemberSummary] = useState<MemberSummary | null>({
     messName: initialMessName,
@@ -148,7 +144,6 @@ export function AppShell({
               <h1 className="truncate text-xl font-black">{messName}</h1>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <button type="button" onClick={toggleTheme} aria-label={dark ? "Light mode" : "Dark mode"} title={dark ? "Light mode" : "Dark mode"} className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">{dark ? <Sun size={17} /> : <Moon size={17} />}</button>
               <NotificationToggle />
               <Link href="/history" className="rounded-full border border-white/80 bg-white/90 px-3 py-2 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-teal-50 hover:text-teal-700 sm:px-4 sm:text-xs" title="View history">{currentLabel}</Link>
             </div>

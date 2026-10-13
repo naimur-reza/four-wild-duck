@@ -150,17 +150,55 @@ export async function getMessMonths(messId: string) {
   });
 }
 
+export function getMonthDateRangeFromLabel(
+  label: string,
+  fallbackYear?: number,
+): { start: Date; end: Date } | null {
+  const parts = label.trim().split(/\s+/);
+  if (!parts[0]) return null;
+  const monthIndex = new Date(`${parts[0]} 1, 2000`).getMonth();
+  if (isNaN(monthIndex)) return null;
+  const year = parseInt(parts[1], 10) || fallbackYear || new Date().getFullYear();
+  // Start: 1st of month 00:00:00 BST -> UTC: year, monthIndex, 1, -6, 0, 0, 0
+  // End: last day of month 23:59:59.999 UTC -> covers entire month across both BST and UTC
+  const start = new Date(Date.UTC(year, monthIndex, 1, -6, 0, 0, 0));
+  const end = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999));
+  return { start, end };
+}
+
 export async function getMonthExpenses(messId: string, monthId: string) {
+  const month = await prisma.month.findUnique({
+    where: { id: monthId },
+    select: { label: true, createdAt: true },
+  });
+  const range = month ? getMonthDateRangeFromLabel(month.label, month.createdAt.getFullYear()) : null;
+
   return prisma.expense.findMany({
-    where: { messId, monthId },
+    where: {
+      messId,
+      ...(range
+        ? { date: { gte: range.start, lte: range.end } }
+        : { monthId }),
+    },
     include: { member: { include: { profile: true } } },
     orderBy: { date: "desc" },
   });
 }
 
 export async function getMonthCashPayments(messId: string, monthId: string) {
+  const month = await prisma.month.findUnique({
+    where: { id: monthId },
+    select: { label: true, createdAt: true },
+  });
+  const range = month ? getMonthDateRangeFromLabel(month.label, month.createdAt.getFullYear()) : null;
+
   return prisma.cashPayment.findMany({
-    where: { messId, monthId },
+    where: {
+      messId,
+      ...(range
+        ? { date: { gte: range.start, lte: range.end } }
+        : { monthId }),
+    },
     include: { member: { include: { profile: true } } },
     orderBy: { date: "desc" },
   });
@@ -174,7 +212,7 @@ async function getPreviousBalances(
   const balances = new Map<string, number>();
   const previousClosedMonth = await prisma.month.findFirst({
     where: { messId, status: "CLOSED", createdAt: { lt: before } },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ closedAt: "desc" }, { createdAt: "desc" }],
     include: { summaries: true },
   });
 

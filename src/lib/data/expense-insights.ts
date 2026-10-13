@@ -73,6 +73,6 @@ export async function loadExpenseInsights(): Promise<InsightData> {
     totalCurrent: total(current), totalPrevious: total(previous),
     expenseCount: current.length, historicalCount: expenses.length,
     categories: rows((expense) => expense.category),
-    notes: rows((expense) => expense.note?.trim().replace(/\s+/g, " ").toLocaleLowerCase().slice(0, 80) || null).slice(0, 8),
+    notes: rows((expense) => expense.note?.trim().replace(/\s+/g, " ").toLocaleLowerCase().slice(0, 80) || null).slice(0, 20),
   };
 }

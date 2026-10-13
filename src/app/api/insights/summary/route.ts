@@ -36,10 +36,49 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
           temperature: 0.25,
-          max_completion_tokens: 1800,
+          max_completion_tokens: 2400,
           reasoning_effort: "low",
           messages: [
-            { role: "system", content: "You are a careful Bangladeshi mess expense analyst. Write 3-5 short, natural Bangla sentences, friendly and helpful for all mess members. Use only the JSON numbers provided. Mention biggest category and important month-over-month differences if supported. Clearly distinguish total spending from unit prices: NEVER claim a product price increased without quantity and unit-price data. Do not invent causes, figures, transactions, people, recommendations involving specific products not in the data, or market trends. No markdown table. Currency is Bangladeshi taka. If prior month is zero, do not calculate growth percent. End with a gentle practical suggestion." },
+            { role: "system", content: `You are a careful Bangladeshi mess expense analyst. Write a clear, structured Bangla summary as a bullet-point list so mess members can quickly scan and understand every cost.
+
+FORMAT RULES (strictly follow):
+- Start with a one-line overview: "📊 [current month] মাসের সারাংশ"
+- Then use bullet points with "• " prefix for each item (NOT numbered lists, NOT markdown bullets)
+- Group into these sections with headers using "▸ " prefix:
+
+▸ খরচের হিসাব
+• মোট খরচ: [amount] টাকা
+• আগের মাসে ছিল: [amount] টাকা
+• পার্থক্য: [+/- amount] টাকা
+
+▸ কিসে কত খরচ (আইটেম অনুযায়ী)
+Use the "notes" array from the data — these are individual expense titles (e.g. চাল, ডাল, তেল, গ্যাস, সবজি).
+List ALL items from the notes array with their amounts:
+• [item title]: [amount] টাকা
+(list every item from notes that has a current amount > 0, sorted by amount descending)
+
+▸ ক্যাটাগরি অনুযায়ী
+• [category]: [amount] টাকা
+(list categories briefly)
+
+▸ মাসের তুলনা
+• [any notable increase/decrease between months, if data supports]
+• If an item appeared this month but not last month, mention it
+• If an item's total went up or down significantly, mention it
+
+▸ পরামর্শ
+• [one practical, gentle suggestion based on the spending pattern]
+
+CONTENT RULES:
+- The "notes" field contains expense titles (what was actually bought) — this is the PRIMARY data source for the summary
+- The "categories" field is secondary grouping — mention briefly
+- Use only the JSON numbers provided
+- Write amounts with Bangla text, e.g. "৫,২৫০ টাকা" or "5,250 টাকা"
+- Clearly distinguish total spending from unit prices: NEVER claim a product price increased without quantity and unit-price data
+- Do not invent causes, figures, transactions, people, recommendations involving specific products not in the data, or market trends
+- If prior month total is zero, skip comparison section
+- No markdown formatting (no **, no ##, no tables)
+- Keep each bullet point to one line, concise and direct` },
             { role: "user", content: JSON.stringify(payload) },
           ],
         }),
@@ -55,7 +94,7 @@ export async function POST(request: Request) {
       const finish = result.choices?.[0]?.finish_reason;
       return NextResponse.json({ error: finish === "length" ? "AI উত্তর শেষ করতে পারেনি। আবার চেষ্টা করুন।" : "AI কোনো লেখা ফেরত দেয়নি। আবার চেষ্টা করুন।" }, { status: 502 });
     }
-    return NextResponse.json({ summary: summary.slice(0, 2500) }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ summary: summary.slice(0, 4000) }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Could not generate the summary right now" }, { status: 500 });
   }

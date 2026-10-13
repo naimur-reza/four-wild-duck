@@ -18,6 +18,7 @@ import {
   getCurrentOpenMonth,
   getMessMembers,
   getMessMonths,
+  getMonthDateRangeFromLabel,
   requireMembership,
   startOfDay,
 } from "@/lib/data/ledger";
@@ -84,23 +85,24 @@ export default async function ExpensesPage({
   const selectedMember = members.find((member) => member.id === filters.member);
   const activeMembers = members.filter((member) => member.status === "ACTIVE");
 
-  // Show expenses from every Month row representing the selected calendar period.
-  // This also exposes records assigned to duplicate months by earlier rollovers.
+  // Scope expenses to the selected month's date range.
+  // This prevents expenses from other months leaking in when monthId associations are shared or historical.
+  const range = getMonthDateRangeFromLabel(selectedMonth.label, selectedMonth.createdAt.getFullYear());
   const periodMonthIds = months.filter((month) => month.label === selectedMonth.label).map((month) => month.id);
-  const periodStart = new Date(`${selectedMonth.label} 1, 00:00:00 GMT+0600`);
-  const periodEnd = new Date(periodStart);
-  periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
-  const periodDate = Number.isNaN(periodStart.getTime()) ? undefined : { gte: periodStart, lt: periodEnd };
+  const dateFilter: Prisma.DateTimeFilter | undefined = date
+    ? date
+    : range
+      ? { gte: range.start, lte: range.end }
+      : undefined;
+
   const expenses = await prisma.expense.findMany({
     where: {
       messId: membership.messId,
-      OR: [
-        { monthId: { in: periodMonthIds } },
-        ...(periodDate ? [{ date: periodDate }] : []),
-      ],
+      ...(dateFilter
+        ? { date: dateFilter }
+        : { monthId: { in: periodMonthIds } }),
       ...(selectedMember ? { memberId: selectedMember.id } : {}),
       ...(selectedCategory ? { category: selectedCategory } : {}),
-      ...(date ? { date } : {}),
     },
     include: { member: { include: { profile: true } } },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
@@ -133,7 +135,7 @@ export default async function ExpensesPage({
               </h3>
             </div>
             <div className="rounded-xl bg-teal-50 px-2.5 py-1.5 text-[10px] font-black text-teal-700 sm:rounded-2xl sm:px-3 sm:py-2 sm:text-xs">
-              {openMonth.label} · Active
+              {selectedMonth.label} · {selectedMonth.status === "OPEN" ? "Active" : "Closed"}
             </div>
           </div>
 

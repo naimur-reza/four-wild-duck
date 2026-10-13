@@ -34,7 +34,7 @@ export async function POST(request: Request) {
         signal: controller.signal,
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+          model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
           temperature: 0.25,
           max_tokens: 450,
           messages: [

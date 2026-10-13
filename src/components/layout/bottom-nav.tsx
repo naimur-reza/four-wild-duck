@@ -6,7 +6,7 @@ import { dashboardNavItems } from "@/lib/constants/navigation";
 
 export function BottomNav() {
   const pathname = usePathname();
-  const items = dashboardNavItems.slice(0, 5);
+  const items = dashboardNavItems.filter((item) => ["/dashboard", "/expenses", "/insights", "/payments", "/history"].includes(item.href));
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/80 bg-white/[0.92] px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-14px_34px_rgba(15,23,42,0.10)] backdrop-blur-2xl md:hidden">

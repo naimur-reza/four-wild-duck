@@ -87,6 +87,8 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
             {selected ? <span className="rounded-xl bg-slate-950 px-3 py-1.5 text-[10px] font-black text-white sm:text-xs">{selected.summaries.length} rows</span> : null}
           </div>
 
+          {selected ? (<Link href={`/expenses?month=${selected.id}`} className="mb-4 inline-flex rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white">View {selected.label} expense list</Link>) : null}
+
           {selected && canReopen && selected.id === latestClosedId ? (
             <form action={reopenMonth} className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 sm:p-4">
               <input type="hidden" name="month_id" value={selected.id} />

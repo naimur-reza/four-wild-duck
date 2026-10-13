@@ -19,11 +19,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-<<<<<<< HEAD
-    statusBarStyle: "default",
-=======
     statusBarStyle: "black-translucent",
->>>>>>> origin/main
     title: "Mess Khata",
   },
   icons: {
@@ -47,10 +43,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${plusJakarta.variable} antialiased`}
       >
+        <script dangerouslySetInnerHTML={{ __html: 'try{var t=localStorage.getItem("mess-khata-theme");document.documentElement.classList.toggle("dark",t?t==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches)}catch(e){}' }} />
         {children}
         <RegisterServiceWorker />
       </body>

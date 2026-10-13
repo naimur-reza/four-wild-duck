@@ -84,10 +84,13 @@ export default async function ExpensesPage({
   const selectedMember = members.find((member) => member.id === filters.member);
   const activeMembers = members.filter((member) => member.status === "ACTIVE");
 
+  // Show expenses from every Month row representing the selected calendar period.
+  // This also exposes records assigned to duplicate months by earlier rollovers.
+  const periodMonthIds = months.filter((month) => month.label === selectedMonth.label).map((month) => month.id);
   const expenses = await prisma.expense.findMany({
     where: {
       messId: membership.messId,
-      monthId: selectedMonth.id,
+      monthId: { in: periodMonthIds },
       ...(selectedMember ? { memberId: selectedMember.id } : {}),
       ...(selectedCategory ? { category: selectedCategory } : {}),
       ...(date ? { date } : {}),
@@ -123,7 +126,7 @@ export default async function ExpensesPage({
               </h3>
             </div>
             <div className="rounded-xl bg-teal-50 px-2.5 py-1.5 text-[10px] font-black text-teal-700 sm:rounded-2xl sm:px-3 sm:py-2 sm:text-xs">
-              {selectedMonth.label}
+              {openMonth.label} · Active
             </div>
           </div>
 
@@ -231,7 +234,7 @@ export default async function ExpensesPage({
 
           <div className="min-w-0 space-y-2 sm:space-y-3">
             {expenses.map((expense) => {
-              const canEdit = selectedMonth.status === "OPEN" && canAddExpenseForMember(
+              const canEdit = expense.monthId === openMonth.id && selectedMonth.status === "OPEN" && canAddExpenseForMember(
                 membership.role,
                 membership.id,
                 expense.memberId || "",

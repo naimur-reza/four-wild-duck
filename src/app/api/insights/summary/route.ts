@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   try {
     // Auth and mess isolation are enforced by loadExpenseInsights -> requireMembership.
     const data = await loadExpenseInsights();
-    if (!data.expenseCount) return NextResponse.json({ summary: "এই মাসে এখনো কোনো খরচের এন্ট্রি নেই। খরচ যোগ হলে তুলনামূলক সারাংশ দেখানো যাবে।" });
+    if (!data.expenseCount && data.totalPrevious === 0) return NextResponse.json({ summary: "এই মেসে বিশ্লেষণের জন্য কোনো খরচের রেকর্ড পাওয়া যায়নি।" });
     const payload = {
       currentMonth: data.currentMonth,
       previousMonth: data.previousMonth,

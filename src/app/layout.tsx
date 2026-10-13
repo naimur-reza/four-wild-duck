@@ -19,7 +19,11 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
+<<<<<<< HEAD
+    statusBarStyle: "default",
+=======
     statusBarStyle: "black-translucent",
+>>>>>>> origin/main
     title: "Mess Khata",
   },
   icons: {
@@ -35,7 +39,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#080e19",
+  themeColor: "#0f766e",
   viewportFit: "cover",
 };
 
@@ -43,7 +47,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${plusJakarta.variable} antialiased`}
       >

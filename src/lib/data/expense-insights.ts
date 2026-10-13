@@ -29,47 +29,77 @@ export async function loadExpenseInsights(): Promise<InsightData> {
   const month = Number(parts.find((part) => part.type === "month")?.value);
   const currentMonth = formatter.format(new Date(Date.UTC(year, month - 1, 15)));
   const previousMonth = formatter.format(new Date(Date.UTC(year, month - 2, 15)));
-  // Match accounting period by label, not a single Month id. Prior rollover may have created duplicates.
-  const months = await prisma.month.findMany({
-    where: { messId: membership.messId, label: { in: [currentMonth, previousMonth] } },
-    select: { id: true, label: true },
-  });
-  const currentIds = months.filter((row) => row.label === currentMonth).map((row) => row.id);
-  const previousIds = months.filter((row) => row.label === previousMonth).map((row) => row.id);
-  const expenses = await prisma.expense.findMany({
-    where: { messId: membership.messId, monthId: { in: [...currentIds, ...previousIds] } },
-    select: { monthId: true, category: true, amount: true, note: true },
-    take: 10000,
-  });
-  const currentSet = new Set(currentIds);
-  const previousSet = new Set(previousIds);
-  const totals = (period: Set<string>, key: (expense: (typeof expenses)[number]) => string | null) => {
+  // Use both the linked accounting month and the expense date, matching the Expenses page.
+  // Load all mess-scoped records so historic expenses are not silently reported as zero.
+  const [months, expenses] = await Promise.all([
+    prisma.month.findMany({ where: { messId: membership.messId }, select: { id: true, label: true } }),
+    prisma.expense.findMany({
+      where: { messId: membership.messId },
+      select: { monthId: true, date: true, category: true, amount: true, note: true },
+      orderBy: { date: "desc" },
+    }),
+  ]);
+  const labelById = new Map(months.map((row) => [row.id, row.label]));
+  const periodLabel = (date: Date) => formatter.format(date);
+  const periodStart = (label: string) => {
+    const match = /^(\\w+) (\\d{4})$/.exec(label);
+    if (!match) return null;
+    const index = new Date(`${match[1]} 1, 2000`).getUTCMonth();
+    if (Number.isNaN(index)) return null;
+    return Date.UTC(Number(match[2]), index, 1) - 6 * 60 * 60 * 1000;
+  };
+  const belongsTo = (expense: (typeof expenses)[number], label: string) => {
+    const start = periodStart(label);
+    const dateMatches = start !== null && expense.date.getTime() >= start &&
+      expense.date.getTime() < new Date(start + 6 * 60 * 60 * 1000).setUTCMonth
+        ? false : false;
+    return dateMatches;
+  };
+  const inPeriod = (expense: (typeof expenses)[number], label: string) => {
+    const start = periodStart(label);
+    if (start === null) return labelById.get(expense.monthId ?? "") === label;
+    const startDate = new Date(start);
+    const end = Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 1) - 6 * 60 * 60 * 1000;
+    return labelById.get(expense.monthId ?? "") === label ||
+      (expense.date.getTime() >= start && expense.date.getTime() < end);
+  };
+  // If this and last month have no entries, show the most recent populated period instead.
+  // Never fabricate spending for an empty calendar month.
+  const populated = [...new Set(expenses.map((e) => labelById.get(e.monthId ?? "") || periodLabel(e.date)))];
+  const selectedCurrent = expenses.some((e) => inPeriod(e, currentMonth) || inPeriod(e, previousMonth))
+    ? currentMonth : populated[0] || currentMonth;
+  const selectedDate = new Date(`${selectedCurrent} 15, 2020`);
+  const parsed = /^(\\w+) (\\d{4})$/.exec(selectedCurrent);
+  const selectedPrevious = parsed
+    ? formatter.format(new Date(Date.UTC(Number(parsed[2]), new Date(`${parsed[1]} 1, 2000`).getUTCMonth() - 1, 15)))
+    : previousMonth;
+  const totals = (period: string, key: (expense: (typeof expenses)[number]) => string | null) => {
     const result = new Map<string, number>();
     for (const expense of expenses) {
-      if (!expense.monthId || !period.has(expense.monthId)) continue;
+      if (!inPeriod(expense, period)) continue;
       const label = key(expense);
       if (!label) continue;
       result.set(label, money((result.get(label) ?? 0) + Number(expense.amount)));
     }
     return result;
   };
-  const currentCategories = totals(currentSet, (expense) => expense.category);
-  const previousCategories = totals(previousSet, (expense) => expense.category);
+  const currentCategories = totals(selectedCurrent, (expense) => expense.category);
+  const previousCategories = totals(selectedPrevious, (expense) => expense.category);
   // Notes are user-entered free text; exact matching only. Do not pretend synonyms are the same product.
   const normalizeNote = (note: string | null) => {
     const value = note?.trim().replace(/\s+/g, " ").toLocaleLowerCase();
     return value && value.length >= 2 ? value.slice(0, 80) : null;
   };
-  const currentNotes = totals(currentSet, (expense) => normalizeNote(expense.note));
-  const previousNotes = totals(previousSet, (expense) => normalizeNote(expense.note));
+  const currentNotes = totals(selectedCurrent, (expense) => normalizeNote(expense.note));
+  const previousNotes = totals(selectedPrevious, (expense) => normalizeNote(expense.note));
   const rows = (a: Map<string, number>, b: Map<string, number>) =>
     [...new Set([...a.keys(), ...b.keys()])].map((label) => compare(label, a.get(label) ?? 0, b.get(label) ?? 0))
       .sort((x, y) => y.current - x.current);
   const totalCurrent = money([...currentCategories.values()].reduce((a, b) => a + b, 0));
   const totalPrevious = money([...previousCategories.values()].reduce((a, b) => a + b, 0));
   return {
-    currentMonth, previousMonth, totalCurrent, totalPrevious,
-    expenseCount: expenses.filter((e) => e.monthId && currentSet.has(e.monthId)).length,
+    currentMonth: selectedCurrent, previousMonth: selectedPrevious, totalCurrent, totalPrevious,
+    expenseCount: expenses.filter((e) => inPeriod(e, selectedCurrent)).length,
     categories: rows(currentCategories, previousCategories),
     notes: rows(currentNotes, previousNotes).slice(0, 15),
     caveat: "এগুলো মোট খরচের তুলনা, পণ্যের একক বাজারদরের পরিবর্তন নয়। পরিমাণ ও ইউনিট মূল্য সংরক্ষিত না থাকায় দাম বেড়েছে কি না নিশ্চিত বলা যায় না।",

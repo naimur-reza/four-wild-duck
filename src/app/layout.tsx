@@ -43,10 +43,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${plusJakarta.variable} antialiased`}
       >
+        <script dangerouslySetInnerHTML={{ __html: 'try { var saved = localStorage.getItem("mess-khata-theme"); document.documentElement.classList.toggle("dark", saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches); } catch(e) {}' }} />
         {children}
         <RegisterServiceWorker />
       </body>

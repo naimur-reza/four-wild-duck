@@ -17,13 +17,12 @@ export default async function InsightsPage() {
     <div className="space-y-5">
       <div>
         <h1 className="mt-1 text-2xl font-black sm:text-3xl">খরচের বিশ্লেষণ</h1>
-        <p className="mt-1 text-sm text-slate-500">{data.currentMonth} / {data.previousMonth}</p>
+        <p className="mt-1 text-xs text-slate-500">{data.currentMonth}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm font-bold text-slate-500">এই মাসের খরচ</p>
           <p className="mt-2 text-2xl font-black">{formatTaka(data.totalCurrent)}</p>
-          <p className="mt-1 text-xs text-slate-500">{data.expenseCount}টি এন্ট্রি</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm font-bold text-slate-500">গত মাসের খরচ</p>
@@ -32,13 +31,12 @@ export default async function InsightsPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm font-bold text-slate-500">খরচের পরিবর্তন</p>
           <p className="mt-2 text-xl font-black">{changeText(difference, data.totalPrevious > 0 ? Math.round(difference / data.totalPrevious * 100) : null)}</p>
-          <p className="mt-1 text-xs text-slate-500">মোট খরচের তুলনা</p>
         </div>
       </div>
       <BanglaAiSummary />
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-black">কোন খাতে বেশি খরচ?</h2>
+          <h2 className="text-lg font-black">খরচের খাত</h2>
           {data.categories.length === 0 ? <p className="text-sm text-slate-500">এখনো কোনো খরচ পাওয়া যায়নি।</p> : (
             <div className="space-y-3">
               {data.categories.map((row) => (
@@ -57,7 +55,7 @@ export default async function InsightsPage() {
           )}
         </section>
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-black">কোন জিনিসে খরচ হচ্ছে?</h2>
+          <h2 className="text-lg font-black">খরচের বিবরণ</h2>
           {data.notes.length === 0 ? <p className="text-sm text-slate-500">নোটসহ খরচ যোগ করলে এখানে বিস্তারিত দেখা যাবে।</p> : (
             <div className="space-y-2">
               {data.notes.map((row) => (
@@ -73,7 +71,7 @@ export default async function InsightsPage() {
           )}
         </section>
       </div>
-      <p className="rounded-xl border border-amber-300/40 bg-amber-50 p-4 text-sm leading-7 text-amber-900 dark:bg-amber-950 dark:text-amber-100">{data.caveat}</p>
+      <p className="text-xs text-slate-500">এটি মোট খরচের তুলনা, বাজারদরের নয়।</p>
     </div>
   );
 }

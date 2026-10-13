@@ -87,10 +87,17 @@ export default async function ExpensesPage({
   // Show expenses from every Month row representing the selected calendar period.
   // This also exposes records assigned to duplicate months by earlier rollovers.
   const periodMonthIds = months.filter((month) => month.label === selectedMonth.label).map((month) => month.id);
+  const periodStart = new Date(`${selectedMonth.label} 1, 00:00:00 GMT+0600`);
+  const periodEnd = new Date(periodStart);
+  periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
+  const periodDate = Number.isNaN(periodStart.getTime()) ? undefined : { gte: periodStart, lt: periodEnd };
   const expenses = await prisma.expense.findMany({
     where: {
       messId: membership.messId,
-      monthId: { in: periodMonthIds },
+      OR: [
+        { monthId: { in: periodMonthIds } },
+        ...(periodDate ? [{ date: periodDate }] : []),
+      ],
       ...(selectedMember ? { memberId: selectedMember.id } : {}),
       ...(selectedCategory ? { category: selectedCategory } : {}),
       ...(date ? { date } : {}),

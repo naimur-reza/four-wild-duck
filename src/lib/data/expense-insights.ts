@@ -57,7 +57,7 @@ export async function loadExpenseInsights(): Promise<InsightData> {
   const previousCategories = totals(previousSet, (expense) => expense.category);
   // Notes are user-entered free text; exact matching only. Do not pretend synonyms are the same product.
   const normalizeNote = (note: string | null) => {
-    const value = note?.trim().replace(/\\s+/g, " ").toLocaleLowerCase();
+    const value = note?.trim().replace(/\s+/g, " ").toLocaleLowerCase();
     return value && value.length >= 2 ? value.slice(0, 80) : null;
   };
   const currentNotes = totals(currentSet, (expense) => normalizeNote(expense.note));

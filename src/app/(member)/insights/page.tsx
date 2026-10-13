@@ -4,74 +4,41 @@ import { formatTaka } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-function changeText(difference: number, percent: number | null) {
-  if (difference === 0) return "আগের মাসের সমান";
-  const label = difference > 0 ? "বেশি" : "কম";
-  return `${formatTaka(Math.abs(difference))} ${label}${percent === null ? "" : ` (${Math.abs(percent)}%)`}`;
-}
-
 export default async function InsightsPage() {
   const data = await loadExpenseInsights();
-  const difference = data.totalCurrent - data.totalPrevious;
+  const delta = data.totalCurrent - data.totalPrevious;
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="mt-1 text-2xl font-black sm:text-3xl">খরচের বিশ্লেষণ</h1>
-        <p className="mt-1 text-xs text-slate-500">{data.currentMonth}</p>
+    <div className="mx-auto max-w-3xl space-y-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="text-2xl font-bold">AI Insights</h1>
+        <span className="text-xs text-slate-500">{data.currentMonth} · {data.previousMonth}</span>
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-bold text-slate-500">এই মাসের খরচ</p>
-          <p className="mt-2 text-2xl font-black">{formatTaka(data.totalCurrent)}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-bold text-slate-500">গত মাসের খরচ</p>
-          <p className="mt-2 text-2xl font-black">{formatTaka(data.totalPrevious)}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-bold text-slate-500">খরচের পরিবর্তন</p>
-          <p className="mt-2 text-xl font-black">{changeText(difference, data.totalPrevious > 0 ? Math.round(difference / data.totalPrevious * 100) : null)}</p>
-        </div>
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { title: "এই মাস", amount: data.totalCurrent },
+          { title: "আগের মাস", amount: data.totalPrevious },
+          { title: "পার্থক্য", amount: delta },
+        ].map((item) => (
+          <div key={item.title} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
+            <p className="text-xs text-slate-500">{item.title}</p>
+            <p className="mt-1 break-words text-sm font-bold sm:text-xl">{formatTaka(item.amount)}</p>
+          </div>
+        ))}
       </div>
       <BanglaAiSummary />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-black">খরচের খাত</h2>
-          {data.categories.length === 0 ? <p className="text-sm text-slate-500">এখনো কোনো খরচ পাওয়া যায়নি।</p> : (
-            <div className="space-y-3">
-              {data.categories.map((row) => (
-                <div key={row.label} className="rounded-xl border border-slate-200 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-bold">{row.label}</span>
-                    <span className="text-sm font-black">{formatTaka(row.current)}</span>
-                  </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-                    <div className="h-full rounded-full bg-teal-500" style={{ width: `${data.totalCurrent > 0 ? Math.min(100, row.current / data.totalCurrent * 100) : 0}%` }} />
-                  </div>
-                  <p className="mt-2 text-xs text-slate-500">গত মাস: {formatTaka(row.previous)} · {changeText(row.difference, row.percent)}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-black">খরচের বিবরণ</h2>
-          {data.notes.length === 0 ? <p className="text-sm text-slate-500">নোটসহ খরচ যোগ করলে এখানে বিস্তারিত দেখা যাবে।</p> : (
-            <div className="space-y-2">
-              {data.notes.map((row) => (
-                <div key={row.label} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 p-3">
-                  <div className="min-w-0">
-                    <p className="break-words text-sm font-bold">{row.label}</p>
-                    <p className="text-xs text-slate-500">গত মাস: {formatTaka(row.previous)} · {changeText(row.difference, row.percent)}</p>
-                  </div>
-                  <span className="text-sm font-black">{formatTaka(row.current)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-      <p className="text-xs text-slate-500">এটি মোট খরচের তুলনা, বাজারদরের নয়।</p>
+      {data.categories.length > 0 ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+          <h2 className="mb-3 text-sm font-bold">খরচের হিসাব</h2>
+          <div className="divide-y divide-slate-200 dark:divide-slate-700">
+            {data.categories.slice(0, 6).map((row) => (
+              <div key={row.label} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <span>{row.label}</span>
+                <span className="font-semibold">{formatTaka(row.current)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { loadMessContext } from "@/lib/data/ledger" ? "@/lib/data/mess-context" : "@/lib/data/mess-context";
+import { loadMessContext } from "@/lib/data/mess-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

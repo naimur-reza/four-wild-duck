@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Moon, Sun } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { BottomNav } from "@/components/layout/bottom-nav";
@@ -39,6 +40,16 @@ export function AppShell({
   const [profileUser, setProfileUser] = useState<SessionUser | null>(null);
   const [isRefreshingMember, setIsRefreshingMember] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  useEffect(() => {
+    setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+  }, []);
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    document.documentElement.classList.toggle("dark", next === "dark");
+    window.localStorage.setItem("mess-khata-theme", next);
+    setTheme(next);
+  }
   const role = memberSummary?.role || initialRole;
   const messName = memberSummary?.messName || initialMessName;
   const activeUser = profileUser || sessionUser;
@@ -112,7 +123,7 @@ export function AppShell({
       </aside>
 
       <div className="md:pl-72">
-        <header className="sticky top-0 z-40 border-b border-white/80 bg-[#f7fbfa]/[0.82] px-3 py-3 shadow-sm shadow-slate-200/40 backdrop-blur-2xl sm:px-4 md:px-8 md:py-4">
+        <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 dark:border-slate-700 dark:bg-[#141f30]/95 px-3 py-3 shadow-sm shadow-slate-200/40 backdrop-blur-2xl sm:px-4 md:px-8 md:py-4">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 md:gap-4">
             <Link href="/settings" className="min-w-0 flex-1 md:hidden">
               <div className="flex min-w-0 items-center gap-2.5 rounded-[1.35rem] border border-white/80 bg-white/80 p-2 shadow-sm ring-1 ring-slate-900/[0.03] backdrop-blur transition active:scale-[0.99]">
@@ -144,6 +155,9 @@ export function AppShell({
               <h1 className="truncate text-xl font-black">{messName}</h1>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              <button type="button" onClick={toggleTheme} aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} title={theme === "dark" ? "Light mode" : "Dark mode"} className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-teal-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500">
+                {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
               <NotificationToggle />
               <Link href="/history" className="rounded-full border border-white/80 bg-white/90 px-3 py-2 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-teal-50 hover:text-teal-700 sm:px-4 sm:text-xs" title="View history">{currentLabel}</Link>
             </div>

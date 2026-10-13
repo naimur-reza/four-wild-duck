@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --background: #f3f7f6;
@@ -84,3 +85,14 @@ html.dark .bg-\\[\\#f7fbfa\\]\\/\\[0\\.82\\], html.dark .bg-\\[\\#f8fbfa\\] { ba
 html.dark .bg-white\\/90, html.dark .bg-white\\/80 { background-color: rgba(20,31,48,.92); }
 html.dark .text-white { color: #fff; }
 html.dark .bg-\\[linear-gradient\\(135deg\\,\\#07111f_0\\%\\,\\#123434_100\\%\\)\\] { color: white; }
+
+/* Theme surfaces and contrast for the existing light-first components. */
+html.dark .bg-\\[\\#f7fbfa\\]\\/\\[0\\.82\\] { background-color: rgba(20,31,48,.96); }
+html.dark .bg-white\\/90, html.dark .bg-white\\/80, html.dark .bg-white\\/70 { background-color: rgba(20,31,48,.94); }
+html.dark .bg-slate-950 { background-color: #07111f; }
+html.dark .text-teal-700 { color: #5eead4; }
+html.dark .text-emerald-700 { color: #6ee7b7; }
+html.dark .text-rose-700 { color: #fda4af; }
+html.dark .text-amber-700, html.dark .text-amber-800 { color: #fcd34d; }
+html.dark .border-white\\/80 { border-color: #334155; }
+html.dark .bg-\\[\\#f7fbfa\\] { background-color: #141f30; }

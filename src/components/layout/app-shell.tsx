@@ -115,7 +115,7 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="md:pl-72">
+      <div className="md:pl-72 text-slate-950 dark:text-slate-100">
         <header className="sticky top-0 z-40 border-b border-slate-200 bg-[#f7fbfa]/[0.95] dark:border-slate-700 dark:bg-[#152234]/95 px-3 py-3 shadow-sm shadow-slate-200/40 backdrop-blur-2xl sm:px-4 md:px-8 md:py-4">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 md:gap-4">
             <Link href="/settings" className="min-w-0 flex-1 md:hidden">

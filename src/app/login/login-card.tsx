@@ -1,0 +1,73 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { authClient } from "@/lib/auth/client";
+
+function getSafeNextPath(next: string | null) {
+  return next?.startsWith("/") && !next.startsWith("//") ? next : "/onboarding";
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error && "message" in error) return String(error.message);
+  return "Google sign-in failed. Please try again.";
+}
+
+export function LoginCard() {
+  const searchParams = useSearchParams();
+  const next = getSafeNextPath(searchParams.get("next"));
+  const [error, setError] = useState<string | null>(null);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  async function handleGoogleLogin() {
+    setError(null);
+    setIsSigningIn(true);
+
+    const callbackURL = `/auth/callback?next=${encodeURIComponent(next)}`;
+
+    try {
+      const { data, error } = await authClient.signIn.social({
+        provider: "google",
+        callbackURL,
+        errorCallbackURL: "/login"
+      });
+
+      if (error) {
+        setError(error.message || "Google sign-in failed. Please try again.");
+        setIsSigningIn(false);
+        return;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      window.location.href = callbackURL;
+    } catch (error) {
+      setError(getErrorMessage(error));
+      setIsSigningIn(false);
+    }
+  }
+
+  return (
+    <section className="w-full max-w-md rounded-[1.5rem] border border-white/80 bg-white/[0.88] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/[0.03] backdrop-blur md:p-8">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-[linear-gradient(135deg,#07111f_0%,#0f766e_100%)] text-2xl font-black text-teal-100 shadow-lg shadow-teal-900/20">M</div>
+      <div className="mt-6 text-center">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-teal-700">Mess Khata</p>
+        <h1 className="mt-2 text-3xl font-black">Welcome back</h1>
+      </div>
+      <button
+        type="button"
+        onClick={handleGoogleLogin}
+        disabled={isSigningIn}
+        className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-teal-700 px-5 py-4 text-sm font-black text-white shadow-xl shadow-teal-100 transition hover:-translate-y-0.5 hover:bg-slate-950 disabled:cursor-wait disabled:opacity-70"
+      >
+        <span className="rounded-full bg-white px-2 py-1 text-xs font-black text-slate-950">G</span>
+        {isSigningIn ? "Opening Google..." : "Continue with Google"}
+      </button>
+      {error ? <p className="mt-4 text-center text-sm font-bold text-rose-700">{error}</p> : null}
+    </section>
+  );
+}

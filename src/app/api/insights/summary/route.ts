@@ -26,11 +26,13 @@ export async function POST(request: Request) {
       caveat: "Spending changes do not establish unit price changes.",
     };
     const candidateModels = [
-      "llama-3.1-8b-instant",
-      "llama-3.3-70b-versatile",
+      process.env.GROQ_MODEL || "openai/gpt-oss-20b",
+      "openai/gpt-oss-120b",
+      "qwen/qwen3.8-27b",
     ];
 
     let summary = "";
+    let lastError = "";
     for (const model of candidateModels) {
       try {
         const controller = new AbortController();
@@ -42,7 +44,7 @@ export async function POST(request: Request) {
           body: JSON.stringify({
             model,
             temperature: 0.25,
-            max_completion_tokens: 2400,
+            max_tokens: 2048,
             messages: [
               { role: "system", content: `You are a careful Bangladeshi mess expense analyst. Write a clear, structured Bangla summary as a bullet-point list so mess members can quickly scan and understand every cost.
 
@@ -93,14 +95,19 @@ CONTENT RULES:
           const result = await response.json() as { choices?: Array<{ finish_reason?: string; message?: { content?: string } }> };
           summary = result.choices?.[0]?.message?.content?.trim() || "";
           if (summary) break;
+        } else {
+          const errBody = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
+          lastError = errBody?.error?.message || `Groq error (${response.status})`;
+          console.error(`Groq error for ${model}:`, response.status, lastError);
         }
-      } catch {
-        // Fallback to next model
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : "Request timed out";
+        console.error(`Groq fetch error for ${model}:`, err);
       }
     }
 
     if (!summary) {
-      return NextResponse.json({ error: "AI সারাংশ তৈরি করতে পারছে না। আবার চেষ্টা করুন।" }, { status: 502 });
+      return NextResponse.json({ error: lastError || "AI সারাংশ তৈরি করতে পারছে না। আবার চেষ্টা করুন।" }, { status: 502 });
     }
     return NextResponse.json({ summary: summary.slice(0, 4000) }, { headers: { "Cache-Control": "no-store" } });
   } catch {

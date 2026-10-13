@@ -58,8 +58,9 @@ export async function loadExpenseInsights(): Promise<InsightData> {
   const inPeriod = (expense: (typeof expenses)[number], label: string) => {
     const start = periodStart(label);
     if (start === null) return labelById.get(expense.monthId ?? "") === label;
-    const startDate = new Date(start);
-    const end = Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 1) - 6 * 60 * 60 * 1000;
+    const parsed = /^(\\w+) (\\d{4})$/.exec(label)!;
+    const monthIndex = new Date(`${parsed[1]} 1, 2000`).getUTCMonth();
+    const end = Date.UTC(Number(parsed[2]), monthIndex + 1, 1) - 6 * 60 * 60 * 1000;
     return labelById.get(expense.monthId ?? "") === label ||
       (expense.date.getTime() >= start && expense.date.getTime() < end);
   };

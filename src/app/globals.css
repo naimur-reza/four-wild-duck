@@ -81,3 +81,20 @@ html.dark input, html.dark select, html.dark textarea { background-color: #101b2
 html.dark input::placeholder, html.dark textarea::placeholder { color: #a0afc1; }
 html.dark option { background: #101b2a; color: #f1f5f9; }
 html.dark .bg-\[\#f7fbfa\]\/\[0\.82\] { background-color: #152234; }
+
+/* Legacy translucent surfaces and report tables need the same dark palette. */
+html.dark main [class*="bg-white/"], html.dark main [class*="bg-white\/"], html.dark header [class*="bg-white/"] {
+  background-color: #172335 !important;
+}
+html.dark main [class*="bg-slate-50/"], html.dark main [class*="bg-slate-100/"] {
+  background-color: #172335 !important;
+}
+html.dark main table { color: #e8f1f8; }
+html.dark main th { color: #f8fafc; }
+html.dark main td { color: #dce6f1; }
+html.dark main [class*="text-slate-950"], html.dark main [class*="text-slate-900"],
+html.dark main [class*="text-slate-800"], html.dark main [class*="text-slate-700"] {
+  color: #f1f5f9 !important;
+}
+html.dark main [class*="border-white/"] { border-color: #35455a; }
+html.dark header [class*="bg-white/"] { color: #f1f5f9; }

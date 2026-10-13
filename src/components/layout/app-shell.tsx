@@ -78,7 +78,7 @@ export function AppShell({
   }
 
   return (
-    <div className="min-h-screen text-slate-950">
+    <div className="min-h-screen text-slate-100">
       <aside className="fixed inset-y-0 left-0 hidden w-72 bg-[linear-gradient(180deg,#07111f_0%,#0b1f26_54%,#0f2d2c_100%)] p-5 shadow-[22px_0_70px_rgba(15,23,42,0.18)] md:block">
         <Link href="/dashboard" className="flex items-center gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.08] p-4 text-white shadow-xl shadow-slate-950/20 backdrop-blur">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-300 to-cyan-200 text-lg font-black text-slate-950 shadow-lg shadow-teal-950/20">M</div>
@@ -112,7 +112,7 @@ export function AppShell({
       </aside>
 
       <div className="md:pl-72">
-        <header className="sticky top-0 z-40 border-b border-white/80 bg-[#f7fbfa]/[0.82] px-3 py-3 shadow-sm shadow-slate-200/40 backdrop-blur-2xl sm:px-4 md:px-8 md:py-4">
+        <header className="sticky top-0 z-40 border-b border-slate-700 bg-[#141f30]/[0.96] px-3 py-3 shadow-sm shadow-slate-200/40 backdrop-blur-2xl sm:px-4 md:px-8 md:py-4">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 md:gap-4">
             <Link href="/settings" className="min-w-0 flex-1 md:hidden">
               <div className="flex min-w-0 items-center gap-2.5 rounded-[1.35rem] border border-white/80 bg-white/80 p-2 shadow-sm ring-1 ring-slate-900/[0.03] backdrop-blur transition active:scale-[0.99]">
@@ -140,12 +140,12 @@ export function AppShell({
               </div>
             </Link>
             <div className="hidden min-w-0 md:block">
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-teal-700">{role}</p>
-              <h1 className="truncate text-xl font-black">{messName}</h1>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-teal-300">{role}</p>
+              <h1 className="truncate text-xl font-black text-white">{messName}</h1>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <NotificationToggle />
-              <Link href="/history" className="rounded-full border border-white/80 bg-white/90 px-3 py-2 text-[11px] font-black text-slate-700 shadow-sm transition hover:bg-teal-50 hover:text-teal-700 sm:px-4 sm:text-xs" title="View history">{currentLabel}</Link>
+              <Link href="/history" className="rounded-full border border-slate-600 bg-slate-800 px-3 py-2 text-[11px] font-black text-slate-100 shadow-sm transition hover:bg-teal-50 hover:text-teal-700 sm:px-4 sm:text-xs" title="View history">{currentLabel}</Link>
             </div>
           </div>
         </header>

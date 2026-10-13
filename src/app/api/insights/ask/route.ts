@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { loadMessContext } from "@/lib/data/mess-context";
+import { loadMessContext } from "@/lib/data/ledger" ? "@/lib/data/mess-context" : "@/lib/data/mess-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,68 +33,76 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "এই মেসে কোনো expense record পাওয়া যায়নি।" }, { status: 404 });
     }
 
-    const systemPrompt = `You are a helpful Bangladeshi mess assistant. Answer questions about the mess expenses, members, and shopping data in natural Bangla.
+    const latestBazarText = ctx.latestBazar
+      ? `Member: ${ctx.latestBazar.addedBy}, Amount: ${ctx.latestBazar.amount} টাকা, Date: ${ctx.latestBazar.date}, Item: ${ctx.latestBazar.note}`
+      : "No bazar recorded";
+
+    const topBazarText = ctx.topBazarMembers.length
+      ? ctx.topBazarMembers
+          .map((m, i) => `${i + 1}. ${m.member}: ${m.totalSpent} টাকা (${m.bazarCount} বার)`)
+          .join(", ")
+      : "No data";
+
+    const systemPrompt = `You are a helpful Bangladeshi mess assistant. Answer questions about mess expenses, members, and shopping data in natural Bangla.
+
+CRITICAL AUTHORITATIVE FACTS (ground truth computed from database):
+- LATEST BAZAR: ${latestBazarText}
+  * If asked "last bajar ke korse", "শেষ বাজার কে করেছে", or similar, the answer is: ${ctx.latestBazar ? ctx.latestBazar.addedBy : "কেউ করেনি"}. State their name, date (${ctx.latestBazar ? ctx.latestBazar.date : ""}), and amount (${ctx.latestBazar ? ctx.latestBazar.amount : 0} টাকা).
+- BAZAR RANKING (who shopped the most): ${topBazarText}
+  * If asked "ke beshi bajar korse" or "কার বাজার সবচেয়ে বেশি", use this ranking.
 
 CONTEXT:
 - Mess name: ${ctx.messName}
 - Members: ${ctx.members.join(", ")}
 - Current month: ${ctx.currentMonth}
-- Total ${ctx.expenseCount} expense records loaded
-
-DATA:
-The "expenses" array contains recent expense records. Each record has:
-- date: when the expense was made
-- category: expense type (BAZAR, RENT, ELECTRICITY, GAS, INTERNET, OTHER)
-- amount: amount in taka
-- note: what was bought (item name/description)
-- addedBy: which member added/did this expense (this is who did the shopping/bajar)
+- Total expense amount: ${ctx.totalExpenses} টাকা
 
 RULES:
 - Answer in Bangla, friendly and conversational
-- Use bullet points with "• " prefix for lists
-- Use "▸ " prefix for section headers if needed
-- Numbers should be clear: write amounts like "5,250 টাকা"
-- Only use data from the provided records — do NOT invent or guess
-- If you can't answer from the data, say so honestly
-- Keep answers concise and relevant
-- No markdown formatting (no **, no ##)
-- "addedBy" = who did the bajar/shopping/paid for the expense
-- For "ke bajar korse" type questions, look at addedBy field in BAZAR category expenses
-- For "ke beshi bajar korse", count or sum amounts grouped by addedBy
-- For "last bajar ke korse", find the most recent BAZAR expense and check addedBy`;
+- Keep answers direct and concise (1-3 sentences)
+- Use bold with **word** for important names and amounts so they stand out
+- Numbers should be written cleanly: e.g. "690 টাকা"
+- Only state facts supported by the data above
+- If you can't answer from the data, say so politely`;
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    let response: Response;
-    try {
-      response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        signal: controller.signal,
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
-          temperature: 0.3,
-          max_completion_tokens: 1800,
-          reasoning_effort: "low",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: `Expense data:\n${JSON.stringify(ctx.recentExpenses)}\n\nQuestion: ${question}` },
-          ],
-        }),
-        cache: "no-store",
-      });
-    } finally {
-      clearTimeout(timeout);
+    const candidateModels = [
+      process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+    ];
+
+    let answer = "";
+    for (const model of candidateModels) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000);
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          signal: controller.signal,
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            temperature: 0.25,
+            max_completion_tokens: 1200,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: `Question: ${question}\n\nRecent expenses:\n${JSON.stringify(ctx.recentExpenses.slice(0, 100))}` },
+            ],
+          }),
+          cache: "no-store",
+        });
+        clearTimeout(timeout);
+        if (response.ok) {
+          const result = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+          answer = result.choices?.[0]?.message?.content?.trim() || "";
+          if (answer) break;
+        }
+      } catch {
+        // Fallback to next model
+      }
     }
 
-    if (!response.ok) {
-      return NextResponse.json({ error: "AI উত্তর দিতে পারছে না, আবার চেষ্টা করুন" }, { status: 502 });
-    }
-
-    const result = await response.json() as { choices?: Array<{ finish_reason?: string; message?: { content?: string } }> };
-    const answer = result.choices?.[0]?.message?.content?.trim();
     if (!answer) {
-      return NextResponse.json({ error: "AI কোনো উত্তর দেয়নি। আবার চেষ্টা করুন।" }, { status: 502 });
+      return NextResponse.json({ error: "AI উত্তর দিতে পারছে না, আবার চেষ্টা করুন" }, { status: 502 });
     }
 
     return NextResponse.json({ answer: answer.slice(0, 4000) }, { headers: { "Cache-Control": "no-store" } });

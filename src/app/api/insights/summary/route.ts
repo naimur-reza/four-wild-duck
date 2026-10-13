@@ -25,21 +25,26 @@ export async function POST(request: Request) {
       notes: data.notes,
       caveat: "Spending changes do not establish unit price changes.",
     };
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
-    let response: Response;
-    try {
-      response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        signal: controller.signal,
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
-          temperature: 0.25,
-          max_completion_tokens: 2400,
-          reasoning_effort: "low",
-          messages: [
-            { role: "system", content: `You are a careful Bangladeshi mess expense analyst. Write a clear, structured Bangla summary as a bullet-point list so mess members can quickly scan and understand every cost.
+    const candidateModels = [
+      process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+    ];
+
+    let summary = "";
+    for (const model of candidateModels) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 14000);
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          signal: controller.signal,
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            temperature: 0.25,
+            max_completion_tokens: 2400,
+            messages: [
+              { role: "system", content: `You are a careful Bangladeshi mess expense analyst. Write a clear, structured Bangla summary as a bullet-point list so mess members can quickly scan and understand every cost.
 
 FORMAT RULES (strictly follow):
 - Start with a one-line overview: "📊 [current month] মাসের সারাংশ"
@@ -77,22 +82,25 @@ CONTENT RULES:
 - Clearly distinguish total spending from unit prices: NEVER claim a product price increased without quantity and unit-price data
 - Do not invent causes, figures, transactions, people, recommendations involving specific products not in the data, or market trends
 - If prior month total is zero, skip comparison section
-- No markdown formatting (no **, no ##, no tables)
 - Keep each bullet point to one line, concise and direct` },
-            { role: "user", content: JSON.stringify(payload) },
-          ],
-        }),
-        cache: "no-store",
-      });
-    } finally {
-      clearTimeout(timeout);
+              { role: "user", content: JSON.stringify(payload) },
+            ],
+          }),
+          cache: "no-store",
+        });
+        clearTimeout(timeout);
+        if (response.ok) {
+          const result = await response.json() as { choices?: Array<{ finish_reason?: string; message?: { content?: string } }> };
+          summary = result.choices?.[0]?.message?.content?.trim() || "";
+          if (summary) break;
+        }
+      } catch {
+        // Fallback to next model
+      }
     }
-    if (!response.ok) return NextResponse.json({ error: "AI summary is temporarily unavailable" }, { status: 502 });
-    const result = await response.json() as { choices?: Array<{ finish_reason?: string; message?: { content?: string } }> };
-    const summary = result.choices?.[0]?.message?.content?.trim();
+
     if (!summary) {
-      const finish = result.choices?.[0]?.finish_reason;
-      return NextResponse.json({ error: finish === "length" ? "AI উত্তর শেষ করতে পারেনি। আবার চেষ্টা করুন।" : "AI কোনো লেখা ফেরত দেয়নি। আবার চেষ্টা করুন।" }, { status: 502 });
+      return NextResponse.json({ error: "AI সারাংশ তৈরি করতে পারছে না। আবার চেষ্টা করুন।" }, { status: 502 });
     }
     return NextResponse.json({ summary: summary.slice(0, 4000) }, { headers: { "Cache-Control": "no-store" } });
   } catch {

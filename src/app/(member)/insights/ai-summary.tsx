@@ -3,17 +3,50 @@
 import { useState, useRef, type FormEvent } from "react";
 import { Sparkles, Send, MessageCircleQuestion } from "lucide-react";
 
-/** Wrap digit sequences and taka amounts with a clear tabular font */
-function formatLine(text: string) {
-  // Split on number patterns (digits in Latin or Bengali, commas, dots, ৳, টাকা adjacent)
-  const parts = text.split(/([\d০-৯,]+(?:\.[\d০-৯]+)?(?:\s*টাকা)?|৳[\d০-৯,]+(?:\.[\d০-৯]+)?)/g);
+/** Render an inline segment with clear tabular numbers */
+function renderInline(segment: string, keyPrefix: string): React.ReactNode {
+  const parts = segment.split(/([\d০-৯,]+(?:\.[\d০-৯]+)?(?:\s*টাকা)?|৳[\d০-৯,]+(?:\.[\d০-৯]+)?)/g);
   return parts.map((part, i) =>
     /[\d০-৯]/.test(part) ? (
-      <span key={i} className="font-semibold tabular-nums" style={{ fontFamily: "var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif", letterSpacing: "0.02em" }}>{part}</span>
+      <span
+        key={`${keyPrefix}-${i}`}
+        className="font-bold tabular-nums"
+        style={{
+          fontFamily: "var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif",
+          letterSpacing: "0.02em",
+        }}
+      >
+        {part}
+      </span>
     ) : (
-      <span key={i}>{part}</span>
+      <span key={`${keyPrefix}-${i}`}>{part}</span>
     )
   );
+}
+
+/** Format a text line: parses markdown bold (**...**), italic (*...*), and clear numbers */
+function formatLine(text: string): React.ReactNode {
+  const tokens = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+
+  return tokens.map((token, i) => {
+    if (token.startsWith("**") && token.endsWith("**") && token.length > 4) {
+      const inner = token.slice(2, -2);
+      return (
+        <strong key={i} className="font-black text-slate-950">
+          {renderInline(inner, `bold-${i}`)}
+        </strong>
+      );
+    }
+    if (token.startsWith("*") && token.endsWith("*") && token.length > 2) {
+      const inner = token.slice(1, -1);
+      return (
+        <em key={i} className="italic font-medium">
+          {renderInline(inner, `em-${i}`)}
+        </em>
+      );
+    }
+    return <span key={i}>{renderInline(token, `txt-${i}`)}</span>;
+  });
 }
 
 function FormattedContent({ text }: { text: string }) {

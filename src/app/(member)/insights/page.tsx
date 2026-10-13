@@ -16,9 +16,8 @@ export default async function InsightsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-black uppercase tracking-widest text-teal-600 dark:text-teal-300">Mess insights</p>
         <h1 className="mt-1 text-2xl font-black sm:text-3xl">খরচের বিশ্লেষণ</h1>
-        <p className="mt-2 text-sm text-slate-500">সবার জন্য সহজ হিসাব · {data.currentMonth} বনাম {data.previousMonth}</p>
+        <p className="mt-1 text-sm text-slate-500">{data.currentMonth} / {data.previousMonth}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -40,7 +39,6 @@ export default async function InsightsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-black">কোন খাতে বেশি খরচ?</h2>
-          <p className="mb-4 text-xs text-slate-500">খাত অনুযায়ী মোট খরচ ও গত মাসের পার্থক্য</p>
           {data.categories.length === 0 ? <p className="text-sm text-slate-500">এখনো কোনো খরচ পাওয়া যায়নি।</p> : (
             <div className="space-y-3">
               {data.categories.map((row) => (
@@ -60,7 +58,6 @@ export default async function InsightsPage() {
         </section>
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-black">কোন জিনিসে খরচ হচ্ছে?</h2>
-          <p className="mb-4 text-xs text-slate-500">একই নামে লেখা নোটের মোট খরচের তুলনা</p>
           {data.notes.length === 0 ? <p className="text-sm text-slate-500">নোটসহ খরচ যোগ করলে এখানে বিস্তারিত দেখা যাবে।</p> : (
             <div className="space-y-2">
               {data.notes.map((row) => (
